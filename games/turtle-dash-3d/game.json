@@ -1,0 +1,278 @@
+{
+  "slug": "turtle-dash-3d",
+  "title": "Turtle Dash 3D",
+  "by": "Uncle Cory",
+  "icon": "🐢",
+  "date": "2026-09-24",
+  "prompt": "A turtle runs along the beach as fast as it can. You jump over crabs and duck under seagulls that swoop at you, and it keeps getting faster. Grab ice cream cones for points.",
+  "engine": "three",
+  "lane": "3d",
+  "genre": "runner-3d",
+  "orient": "portrait",
+  "players": 1,
+  "controls": "custom",
+  "controls_label": "👆 swipe · ⌨️ arrows",
+  "look": {
+    "name": "Tidepool Toon",
+    "lane": "toon-ink",
+    "palette": [
+      "#1b1b3a",
+      "#0f4c5c",
+      "#2ec4b6",
+      "#ff7a59",
+      "#f6d7a7"
+    ],
+    "font": "lilita-one",
+    "tone": "neutral",
+    "camera": "follow",
+    "hero": "geo.lathe shell deformed into lumpy scutes with a painted hex-scute map, capsule legs, a head that ducks into the shell, and a coral scarf trailing a Trail ribbon"
+  },
+  "climax": "frenzy",
+  "toolbox": 2,
+  "probes": [
+    {
+      "name": "swipe-moves-lane",
+      "phone": true,
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          800
+        ],
+        [
+          "swipe",
+          "[data-arcade-swipe]",
+          "left"
+        ],
+        [
+          "adv",
+          300
+        ]
+      ],
+      "expect": {
+        "focus.lane": "changed"
+      }
+    },
+    {
+      "name": "swipe-up-jumps",
+      "phone": true,
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          800
+        ],
+        [
+          "swipe",
+          "[data-arcade-swipe]",
+          "up"
+        ],
+        [
+          "adv",
+          150
+        ]
+      ],
+      "expect": {
+        "focus.y": "changed"
+      }
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "beach",
+      "query": "god=1&at=beach",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          2000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==beach"
+      },
+      "then": [
+        [
+          "adv",
+          3000
+        ]
+      ],
+      "expect_then": {
+        "error": null
+      }
+    },
+    {
+      "name": "pier",
+      "query": "god=1&at=pier",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          2000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==pier"
+      },
+      "then": [
+        [
+          "adv",
+          3000
+        ]
+      ],
+      "expect_then": {
+        "error": null
+      }
+    },
+    {
+      "name": "night",
+      "query": "god=1&at=night",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          3000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==night"
+      },
+      "then": [
+        [
+          "adv",
+          8000
+        ]
+      ],
+      "expect_then": {
+        "error": null
+      }
+    },
+    {
+      "name": "late",
+      "query": "god=1&at=golden",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          3000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==golden"
+      },
+      "then": [
+        [
+          "adv",
+          8000
+        ]
+      ],
+      "expect_then": {
+        "error": null
+      }
+    },
+    {
+      "name": "endless",
+      "query": "god=1&at=endless",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          2000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==endless"
+      },
+      "then": [
+        [
+          "adv",
+          3000
+        ]
+      ],
+      "expect_then": {
+        "error": null
+      }
+    }
+  ],
+  "exemplar": true,
+  "status": "playable",
+  "version": 2,
+  "check": {
+    "ok": true,
+    "gate": 2,
+    "hash": "9442782f1d72a785b82e06356b0d9ee4a7059465"
+  },
+  "review": {
+    "at": "2026-09-24T18:16:02",
+    "hash": "9442782f1d72a785b82e06356b0d9ee4a7059465",
+    "sheet_sha1": "b6cc4192133f870f5ae7f1045040fbf874fc4b01",
+    "warnings": 0,
+    "tests": 7,
+    "judge": {
+      "model": "sonnet",
+      "verdict": "distinct",
+      "pair": null,
+      "reason": "Both are the same space-shooter scene. A ship with a wizard-hat pilot flies through space with a large orange Tatooine planet. Both show three shield icons at top left, a weapon label (BLASTER / MAGIC WAND), a Tatooine level indicator and a house meter/power bar. Images 1 and 3 are both sunset beach runners, but they have different characters, obstacles and art styles (flat low-poly vs outlined to",
+      "cost_usd": 0.0371332,
+      "pair_others": [
+        "space-wizards",
+        "space-wizards-3d"
+      ]
+    },
+    "notes": "Integration pass: relib to toolbox lib-2 (Streaks blending option, G.warm accepts fx instances). Sheet re-read: title over the live beach, turtle hero, cones, gulls, crabs, sunset palette intact; phone play clean; 0 warnings, perf unchanged (89 calls, overdraw 1.87)."
+  }
+}

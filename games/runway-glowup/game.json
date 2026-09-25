@@ -1,0 +1,274 @@
+{
+  "slug": "runway-glowup",
+  "title": "Runway Glow-Up",
+  "by": "Aunt Ceci",
+  "icon": "💄",
+  "date": "2026-09-24",
+  "prompt": "Okay, I want you to make me a game, and it should all revolve around makeup and fashion. I want it to be very fashion chic and maybe even a little trendy. I want it to be interactive, so you get to give your person, your model, makeup and clothes, and maybe even do their hair. Just a very modern-day version of some of the old classic games where you dress people up, put on their makeup, and did their hair",
+  "engine": "three",
+  "lane": "3d",
+  "genre": "runner-3d",
+  "orient": "portrait",
+  "players": 1,
+  "controls": "custom",
+  "controls_label": "👆 swipe · ⌨️ arrows",
+  "look": {
+    "name": "Blush Runway Couture",
+    "lane": "lowpoly-pastel",
+    "palette": [
+      "#f4d6e0",
+      "#8e7dbe",
+      "#e8467c",
+      "#2b2d42",
+      "#f2c14e"
+    ],
+    "font": "abril-fatface",
+    "tone": "neutral",
+    "camera": "follow",
+    "hero": "a fashion model seen from behind: lathe A-line gown + bodice with a gold belt, capsule legs in black stilettos, a deformed brunette hairdo that grows a bun, ponytail and crown, and a hair bow"
+  },
+  "climax": "frenzy",
+  "toolbox": 2,
+  "probes": [
+    {
+      "name": "swipe-moves-lane",
+      "phone": true,
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          800
+        ],
+        [
+          "swipe",
+          "[data-arcade-swipe]",
+          "left"
+        ],
+        [
+          "adv",
+          300
+        ]
+      ],
+      "expect": {
+        "focus.lane": "changed"
+      }
+    },
+    {
+      "name": "swipe-up-jumps",
+      "phone": true,
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          800
+        ],
+        [
+          "swipe",
+          "[data-arcade-swipe]",
+          "up"
+        ],
+        [
+          "adv",
+          150
+        ]
+      ],
+      "expect": {
+        "focus.y": "changed"
+      }
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "start",
+      "query": "god=1&at=backstage",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          3000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==backstage"
+      },
+      "then": [
+        [
+          "adv",
+          8000
+        ]
+      ],
+      "expect_then": {
+        "error": null
+      }
+    },
+    {
+      "name": "mid",
+      "query": "god=1&at=catwalk",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          3000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==catwalk"
+      },
+      "then": [
+        [
+          "adv",
+          8000
+        ]
+      ],
+      "expect_then": {
+        "error": null
+      }
+    },
+    {
+      "name": "late",
+      "query": "god=1&at=spotlight",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          3000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==spotlight"
+      },
+      "then": [
+        [
+          "adv",
+          8000
+        ]
+      ],
+      "expect_then": {
+        "error": null
+      }
+    },
+    {
+      "name": "finale",
+      "query": "god=1&at=finale",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          3000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==finale"
+      },
+      "then": [
+        [
+          "adv",
+          8000
+        ]
+      ],
+      "expect_then": {
+        "error": null
+      }
+    },
+    {
+      "name": "encore",
+      "query": "god=1&at=encore",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          3000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==encore"
+      },
+      "then": [
+        [
+          "adv",
+          8000
+        ]
+      ],
+      "expect_then": {
+        "error": null
+      }
+    }
+  ],
+  "exemplar": false,
+  "status": "playable",
+  "version": 2,
+  "check": {
+    "ok": true,
+    "gate": 2,
+    "hash": "18eb284d0124c2b17bdb19c11fe3c7a627e5c2a0"
+  },
+  "review": {
+    "at": "2026-09-24T21:48:39",
+    "hash": "18eb284d0124c2b17bdb19c11fe3c7a627e5c2a0",
+    "sheet_sha1": "9e57b7da133b841afdcca9909cbcaf1f5f26c9bf",
+    "warnings": 0,
+    "tests": 7,
+    "judge": {
+      "model": "sonnet",
+      "verdict": "distinct",
+      "pair": null,
+      "reason": "The candidate is a fashion-runway endless runner. It has a third-person view of a girl in a pink dress running down a purple runway lane, with gold frames, bows, dresses and boots as pickups, a lowercase 'arcade' link and a 'looks' counter. Image 2 is a toy-store scene with a blue shark, a kid in a red cap, and Grab/Jump buttons. Image 3 is a top-down view of a checkered store floor with display t",
+      "cost_usd": 0.0325292
+    },
+    "notes": "Read sheet.png + phone-play.png at full size: encore scenario past the Photo Finale shows the gold-horizon sky, paparazzi pit and restyled model; phone model readable, runway clear; probe confirmed the finale banner, twirl, mermaid gown, hair color, 4x pickups and lookbook"
+  }
+}

@@ -1,0 +1,278 @@
+{
+  "slug": "shark-dodge-3d",
+  "title": "Shark Dodge 3D",
+  "by": "the kit (exemplar)",
+  "icon": "🦈",
+  "date": "2026-09-24",
+  "prompt": "EXEMPLAR — dodge/survival: swim around, sharks come faster and faster, grab shells, dash with B.",
+  "engine": "three",
+  "lane": "3d",
+  "genre": "arena-3d",
+  "orient": "landscape",
+  "players": 1,
+  "controls": "custom",
+  "controls_label": "thumb stick + DASH · arrows/WASD + Space or X",
+  "look": {
+    "name": "Neon Abyss",
+    "lane": "neon-synth",
+    "palette": [
+      "#05060f",
+      "#1b1464",
+      "#00f5d4",
+      "#f15bb5",
+      "#fee440"
+    ],
+    "font": "righteous",
+    "tone": "agx",
+    "camera": "top",
+    "hero": "neon reef fish: a lathe body with hot torus stripe rings, an extruded crescent tail that wags, extruded pectoral and dorsal fins (mirrored), glowing eyes; sharks are one merged lathe + extrude geometry, vertex-shaded; the Mega Shark is a 3.4× lathe + extrude build with a dissolve-burn body and three deformed-ico gold weak points"
+  },
+  "climax": "boss",
+  "toolbox": 2,
+  "probes": [
+    {
+      "name": "stick-moves",
+      "phone": true,
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          800
+        ],
+        [
+          "drag",
+          "[data-arcade-control=stick]",
+          "60,0",
+          300
+        ],
+        [
+          "adv",
+          200
+        ]
+      ],
+      "expect": {
+        "focus.x": "changed"
+      }
+    },
+    {
+      "name": "stick-and-dash",
+      "phone": true,
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          800
+        ],
+        [
+          "multi",
+          "[data-arcade-control=stick]",
+          "60,0",
+          "[data-arcade-control=dash]"
+        ],
+        [
+          "adv",
+          200
+        ]
+      ],
+      "expect": {
+        "inputs.dash": ">0",
+        "focus.x": "changed"
+      }
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "reef",
+      "query": "god=1",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          3000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==reef",
+        "wave": ">0"
+      },
+      "then": [
+        [
+          "adv",
+          4000
+        ]
+      ],
+      "expect_then": {
+        "error": null
+      }
+    },
+    {
+      "name": "deep",
+      "query": "god=1&at=deep",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          3000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==deep"
+      },
+      "then": [
+        [
+          "adv",
+          8000
+        ]
+      ],
+      "expect_then": {
+        "error": null
+      }
+    },
+    {
+      "name": "late",
+      "query": "god=1&at=boss",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          3000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==boss"
+      },
+      "then": [
+        [
+          "adv",
+          8000
+        ]
+      ],
+      "expect_then": {
+        "error": null,
+        "stage": "==boss"
+      }
+    },
+    {
+      "name": "victory",
+      "query": "god=1&at=boss",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          3000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==boss"
+      },
+      "then": [
+        [
+          "adv",
+          4000
+        ],
+        [
+          "cmd",
+          "boss"
+        ],
+        [
+          "adv",
+          600
+        ],
+        [
+          "cmd",
+          "boss"
+        ],
+        [
+          "adv",
+          600
+        ],
+        [
+          "cmd",
+          "boss"
+        ],
+        [
+          "adv",
+          6000
+        ]
+      ],
+      "expect_then": {
+        "error": null,
+        "stage": "==abyss",
+        "score": ">1000"
+      }
+    }
+  ],
+  "exemplar": true,
+  "status": "playable",
+  "version": 2,
+  "check": {
+    "ok": true,
+    "gate": 2,
+    "hash": "ded12261d5f0df7cae28b881c97d9f22e9659969"
+  },
+  "review": {
+    "at": "2026-09-24T18:18:35",
+    "hash": "ded12261d5f0df7cae28b881c97d9f22e9659969",
+    "sheet_sha1": "05d2e49c90aad9c6e60f54f5432e124516b079ab",
+    "warnings": 0,
+    "tests": 6,
+    "judge": {
+      "model": "sonnet",
+      "verdict": "distinct",
+      "pair": null,
+      "reason": "Both are the same space-shooter game. Each is set on the planet Tatooine and has the same three shield icons, a weapon label (Magic Wand in 1, Blaster in 4), a 'House Power'/'House Meter' bar, and a wizard-hat pilot on a ship. Image 1 is a polished 3D-style render and image 4 is a simpler pixel-art version, but the scene and HUD elements match. Image 2 is a neon underwater arena, and image 3 is a ",
+      "cost_usd": 0.0315036,
+      "pair_others": [
+        "space-wizards-3d",
+        "space-wizards"
+      ]
+    },
+    "notes": "Integration pass: relib to toolbox lib-2 (Streaks blending option, G.warm accepts fx instances). Sheet re-read: Neon Abyss title over the live reef ring, wave banner, BONK rings and trail, stick + DASH on phone clear of the shark, deep scenario at wave 4; 0 warnings, perf unchanged (43 calls, overdraw 1.13, programs 42=42)."
+  }
+}

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#2b2d42">
+<title>Horse Failures 3D</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐴</text></svg>">
+<!-- Horse Failures 3D by Sean · 3d · kart-3d · look "Tin Toy Derby" (glossy-toy) · climax race-finish · started 2026-09-24
+     The idea, verbatim (DESIGN.md keeps the original): Horse Failures: a game where you choose a horse and it can either be a good horse or a bad horse (a failure). Super silly and fun. -->
+<script type="importmap">{"imports":{
+  "three": "../../vendor/three/r170/three.module.min.js",
+  "three/addons/": "../../vendor/three/r170/addons/",
+  "cannon-es": "../../vendor/cannon-es/0.20.0/cannon-es.js"
+}}</script>
+<link rel="stylesheet" href="./lib-2/shell.css?v=2">
+<link rel="stylesheet" href="style.css?v=2">
+</head>
+<body>
+<canvas id="view"></canvas>
+
+<div id="hud" hidden>
+  <div id="hud-left"><span id="place">6TH</span><div id="nerves"><i id="nerves-fill"></i><b>NERVES</b></div></div>
+  <div id="hud-mid"><span id="lap">LAP 1/3</span></div>
+  <div id="hud-right"><span id="crowd">0</span><small>CROWD</small></div>
+</div>
+<div id="cd" aria-live="polite"></div>
+<div id="pops"></div>
+<div id="controls" hidden>
+  <div id="steer"><div id="steer-rail"></div><div id="steer-knob"></div><span>STEER</span></div>
+  <button id="btn-drift" aria-label="drift">DRIFT</button>
+  <button id="btn-boost" aria-label="giddy-up">GIDDY<br>UP!</button>
+</div>
+
+<section id="title" data-start>
+  <p class="kicker">the tin toy derby</p>
+  <h1 class="title">HORSE<br>FAILURES</h1>
+  <p class="by">a game by Sean</p>
+  <p id="prompt" class="prompt"></p>
+</section>
+
+<section id="pick" hidden>
+  <h2 class="pick-head">PICK YOUR HORSE!</h2>
+  <p class="pick-sub">every horse has a secret... some are FAILURES</p>
+  <div id="cards">
+    <button id="pick-0" class="card"><i class="swatch"></i><b class="name"></b><span class="stat"></span><span class="secret">SECRET: ???</span></button>
+    <button id="pick-1" class="card"><i class="swatch"></i><b class="name"></b><span class="stat"></span><span class="secret">SECRET: ???</span></button>
+    <button id="pick-2" class="card"><i class="swatch"></i><b class="name"></b><span class="stat"></span><span class="secret">SECRET: ???</span></button>
+    <button id="pick-3" class="card"><i class="swatch"></i><b class="name"></b><span class="stat"></span><span class="secret">SECRET: ???</span></button>
+    <button id="btn-go" class="go">RACE!</button>
+  </div>
+</section>
+
+<section id="over" data-start hidden>
+  <p id="over-name" class="kicker"></p>
+  <h2 id="over-place" class="title">1ST!</h2>
+  <p id="verdict" class="verdict good"></p>
+  <div class="spacer"></div>
+  <p id="over-secret" class="secret-line"></p>
+  <p class="final">score <span id="final">0</span> · best <span id="best">0</span></p>
+  <p id="again" class="prompt">again!</p>
+</section>
+
+<div id="rotate" hidden><b>🐴</b><span>turn your phone sideways<br>so the horses have room to run!</span></div>
+<a id="hub" hidden>← arcade</a>
+<div id="flash"></div>
+<div id="err" role="alert" hidden></div>
+<script type="module" src="main.js?v=2"></script>
+</body>
+</html>

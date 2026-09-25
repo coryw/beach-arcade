@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0f4c5c">
+<title>Turtle Dash 3D</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐢</text></svg>">
+<!-- Turtle Dash 3D by Uncle Cory · 3d · runner-3d · look "Tidepool Toon" (toon-ink) · climax frenzy · started 2026-09-24
+     The idea, verbatim (DESIGN.md keeps the original): A turtle runs along the beach as fast as it can. You jump over crabs and duck under seagulls that swoop at you, and it keeps getting faster. Grab ice cream cones for points. -->
+<script type="importmap">{"imports":{
+  "three": "../../vendor/three/r170/three.module.min.js",
+  "three/addons/": "../../vendor/three/r170/addons/"
+}}</script>
+<link rel="stylesheet" href="./lib-2/shell.css?v=2">
+<link rel="stylesheet" href="style.css?v=2">
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="swipe"></div>
+
+<div id="hud" hidden>
+  <span id="score">0</span>
+  <span id="cones"><i class="cone-ico"></i><b id="cone-n">0</b></span>
+  <span id="chain" hidden><b id="chain-n">x2</b></span>
+</div>
+<div id="banner" hidden><span id="banner-t"></span></div>
+<div id="pops"></div>
+
+<section id="title" data-start>
+  <h1 class="title"><span>Turtle</span> <span>Dash</span><em>3D</em></h1>
+  <p class="by">a game by Uncle Cory</p>
+  <p class="how">swipe &larr; &rarr; to switch lanes<br>swipe &uarr; to hop the crabs · &darr; to duck the gulls</p>
+  <p id="prompt" class="prompt"></p>
+</section>
+<section id="over" data-start hidden>
+  <h2 class="title" id="over-t">bonk!</h2>
+  <p class="final"><span id="final">0</span></p>
+  <p id="newbest" hidden>new best!</p>
+  <p class="by">best <span id="best">0</span></p>
+  <p id="again" class="prompt">tap to run again!</p>
+</section>
+
+<div id="rotate" hidden>turn me upright! 🐢</div>
+<a id="hub" hidden>← arcade</a>
+<div id="err" role="alert" hidden></div>
+<script type="module" src="main.js?v=2"></script>
+</body>
+</html>

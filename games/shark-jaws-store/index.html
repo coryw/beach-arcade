@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#2ec4b6">
+<title>Shark Jaws Toy Store</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦈</text></svg>">
+<!-- Shark Jaws Toy Store by The Jaws Store Experience · 3d · arena-3d · look "Tin Shark Emporium" (glossy-toy) · climax boss · started 2026-09-24
+     The idea, verbatim (DESIGN.md keeps the original): A game where you enter a huge store through the jaws of a giant shark and you have to run through the halls to find the coolest toys. There&#x27;s an arcade machine where you can run up and push a button and it will make a fart noise. There&#x27;s an area in the center of the store with a giant vat of water that has smaller sharks in it and you can stick your hands in to get the shark&#x27;s attention, but you have to watch out for the store owner, who patrols the store looking for kids who put their hands in the water. -->
+<script type="importmap">{"imports":{
+  "three": "../../vendor/three/r170/three.module.min.js",
+  "three/addons/": "../../vendor/three/r170/addons/"
+}}</script>
+<link rel="stylesheet" href="./lib-2/shell.css?v=1">
+<link rel="stylesheet" href="style.css?v=2">
+</head>
+<body>
+<canvas id="view"></canvas>
+
+<div id="hud" hidden>
+  <div id="lives" aria-label="lives"><i></i><i></i><i></i></div>
+  <div id="score">0</div>
+  <div id="wave">AISLE 1</div>
+</div>
+<div id="bossbar" hidden><b>MEGA JAWS</b><span><i id="bossfill"></i></span></div>
+<div id="banner" hidden><b id="banner-big"></b><span id="banner-small"></span></div>
+<div id="flash"></div>
+<div id="controls" hidden>
+  <div id="stick-zone"><div id="stick-base"><div id="stick-knob"></div></div></div>
+  <button id="btn-dash" aria-label="dash">DASH</button>
+</div>
+
+<section id="title" data-start>
+  <p class="kicker">walk in through the jaws</p>
+  <h1 class="title">Shark Jaws <em>Toy Store</em></h1>
+  <p class="by">by The Jaws Store Experience</p>
+  <p class="how">run with the stick · <b>DASH</b> bonks wind-up chompers into toys · <b>DIP</b> your hand in the shark tank — if the owner isn't looking!</p>
+  <p id="prompt" class="prompt"></p>
+</section>
+<section id="over" data-start hidden>
+  <p class="kicker">kicked out of the store!</p>
+  <h2 class="title">CAUGHT!</h2>
+  <p class="final"><span id="final">0</span></p>
+  <p class="by">best <span id="best">0</span></p>
+  <p id="again" class="prompt">sneak back in!</p>
+</section>
+
+<div id="rotate" hidden><b>turn me sideways</b><span>the store is wide</span></div>
+<a id="hub" hidden>← arcade</a>
+<div id="err" role="alert" hidden></div>
+<script type="module" src="main.js?v=2"></script>
+</body>
+</html>

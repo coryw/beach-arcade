@@ -1,0 +1,19 @@
+{
+  "slug": "horse-failures",
+  "title": "Horse Failures",
+  "by": "Sean",
+  "icon": "🐴",
+  "date": "2026-09-22",
+  "engine": "gk",
+  "orient": "landscape",
+  "controls": "tap",
+  "players": 1,
+  "prompt": "Horse Failures: a game where you choose a horse and it can either be a good horse or a bad horse (a failure). Super silly and fun.",
+  "status": "playable",
+  "version": 1,
+  "check": {
+    "ok": true,
+    "gate": 2,
+    "hash": "7070d7df8b519990359f3ead294535a42803a203"
+  }
+}

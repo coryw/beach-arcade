@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#05060f">
+<title>Shark Dodge 3D</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦈</text></svg>">
+<!-- Shark Dodge 3D by the kit (exemplar) · 3d · arena-3d · look "Neon Abyss" (neon-synth) · climax boss · started 2026-09-24
+     The idea, verbatim (DESIGN.md keeps the original): EXEMPLAR — dodge/survival: swim around, sharks come faster and faster, grab shells, dash with B. -->
+<script type="importmap">{"imports":{
+  "three": "../../vendor/three/r170/three.module.min.js",
+  "three/addons/": "../../vendor/three/r170/addons/"
+}}</script>
+<link rel="stylesheet" href="./lib-2/shell.css?v=1">
+<link rel="stylesheet" href="style.css?v=1">
+</head>
+<body>
+<canvas id="view"></canvas>
+
+<div id="hud" hidden>
+  <div id="lives" aria-label="lives"><i></i><i></i><i></i></div>
+  <div id="score">0</div>
+  <div id="wave">WAVE 1</div>
+</div>
+<div id="bossbar" hidden><b>MEGA SHARK</b><i><s id="bossfill"></s></i></div>
+<div id="pops"></div>
+<div id="banner" hidden><b id="banner-big"></b><span id="banner-small"></span></div>
+<div id="flash"></div>
+<div id="controls" hidden>
+  <div id="stick-zone"><div id="stick-base"><div id="stick-knob"></div></div></div>
+  <button id="btn-dash" aria-label="dash">DASH</button>
+</div>
+
+<section id="title" data-start>
+  <p class="kicker">neon abyss</p>
+  <h1 class="title">Shark Dodge <em>3D</em></h1>
+  <p class="by">by the kit (exemplar)</p>
+  <p class="how">swim with the stick · <b>DASH</b> to bonk · your glowing trail zaps sharks</p>
+  <p id="prompt" class="prompt"></p>
+</section>
+<section id="over" data-start hidden>
+  <h2 class="title chomp">CHOMPED!</h2>
+  <p class="final"><span id="final">0</span></p>
+  <p class="by">best <span id="best">0</span></p>
+  <p id="again" class="prompt">again!</p>
+</section>
+
+<div id="rotate" hidden><b>turn me sideways</b><span>the reef is wide</span></div>
+<a id="hub" hidden>← arcade</a>
+<div id="err" role="alert" hidden></div>
+<script type="module" src="main.js?v=2"></script>
+</body>
+</html>

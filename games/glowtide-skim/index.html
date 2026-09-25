@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0a0f2c">
+<title>Glowtide Skim</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌊</text></svg>">
+<!-- Glowtide Skim by Uncle Cory · 3d · runner-3d · look "Moonwash Glowtide" (neon-synth) · climax timed-rescue · started 2026-09-25
+     The idea, verbatim (DESIGN.md keeps the original): Make a game about skimboarding -->
+<script type="importmap">{"imports":{
+  "three": "../../vendor/three/r170/three.module.min.js",
+  "three/addons/": "../../vendor/three/r170/addons/"
+}}</script>
+<link rel="stylesheet" href="./lib-2/shell.css?v=1">
+<link rel="stylesheet" href="style.css?v=2">
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="swipe"></div>
+
+<div id="hud" hidden>
+  <span id="score">0</span>
+  <span id="glass"><i class="glass-ico"></i><b id="glass-n">0</b></span>
+  <span id="glow-tag">GLOW x2</span>
+  <span id="rescue-t">20s</span>
+</div>
+<div id="pops"></div>
+
+<section id="title" data-start>
+  <h1 class="title"><span>Glowtide</span><span class="skim">Skim</span></h1>
+  <p class="by">a game by Uncle Cory</p>
+  <p class="how">swipe &larr; &rarr; to carve lanes<br>ride the <b>glowing wash</b> for double points<br>swipe &uarr; to ollie jellies · &darr; to duck fishing lines</p>
+  <p id="prompt" class="prompt"></p>
+</section>
+<section id="over" data-start hidden>
+  <h2 class="title" id="over-t">wipeout!</h2>
+  <p class="final"><span id="final">0</span></p>
+  <p id="newbest" hidden>new best!</p>
+  <p class="by">best <span id="best">0</span></p>
+  <p id="again" class="prompt">tap to skim again!</p>
+</section>
+
+<div id="rotate" hidden>turn me upright! 🌊</div>
+<a id="hub" hidden>← arcade</a>
+<div id="err" role="alert" hidden></div>
+<script type="module" src="main.js?v=2"></script>
+</body>
+</html>

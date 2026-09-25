@@ -1,0 +1,19 @@
+{
+  "slug": "space-wizards",
+  "title": "Space Wizards",
+  "by": "The Beach Crew",
+  "icon": "🧙",
+  "date": "2026-09-24",
+  "engine": "gk",
+  "orient": "landscape",
+  "controls": "joystick+ab",
+  "players": 1,
+  "prompt": "Harry Potter and wand battles. Like Star Wars, Harry Potter, Minecraft, Roblox — an ultimate adventure game, starships, space battles, a bunch of different kinds of weapons, no blood. A game in space: different planets where you fly through space and get enemies. Like Tatooine. A house meter. Multiplayer — online multiplayer if we can.",
+  "status": "playable",
+  "version": 1,
+  "check": {
+    "ok": true,
+    "gate": 2,
+    "hash": "483cdd7471edceee493dd03a6275fac9fb139162"
+  }
+}

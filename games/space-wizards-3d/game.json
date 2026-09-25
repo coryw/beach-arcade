@@ -1,0 +1,21 @@
+{
+  "slug": "space-wizards-3d",
+  "title": "Space Wizards 3D",
+  "by": "The Beach Crew",
+  "icon": "🧙",
+  "date": "2026-09-24",
+  "engine": "three",
+  "orient": "landscape",
+  "controls": "custom",
+  "controls_label": "🕹️ drag to fly + 🌀 🪄 · ⌨️ arrows · 🎮 gamepad",
+  "players": 1,
+  "prompt": "Harry Potter and wand battles. Like Star Wars, Harry Potter, Minecraft, Roblox — an ultimate adventure game, starships, space battles, a bunch of different kinds of weapons, no blood. A game in space: different planets where you fly through space and get enemies. Like Tatooine. A house meter. Multiplayer — online multiplayer if we can.",
+  "status": "playable",
+  "version": 2,
+  "source": "~/Programming/beach-games/space-wizards",
+  "check": {
+    "ok": true,
+    "gate": 2,
+    "hash": "4a8dbacba1a51664f3584a6775e72760788bcca4"
+  }
+}

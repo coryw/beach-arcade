@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#8e7dbe">
+<title>Runway Glow-Up</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💄</text></svg>">
+<!-- Runway Glow-Up by Aunt Ceci · 3d · runner-3d · look "Blush Runway Couture" (lowpoly-pastel) · climax frenzy · started 2026-09-24
+     The idea, verbatim (DESIGN.md keeps the original): Okay, I want you to make me a game, and it should all revolve around makeup and fashion. I want it to be very fashion chic and maybe even a little trendy. I want it to be interactive, so you get to give your person, your model, makeup and clothes, and maybe even do their hair. Just a very modern-day version of some of the old classic games where you dress people up, put on their makeup, and did their hair -->
+<script type="importmap">{"imports":{
+  "three": "../../vendor/three/r170/three.module.min.js",
+  "three/addons/": "../../vendor/three/r170/addons/"
+}}</script>
+<link rel="stylesheet" href="./lib-2/shell.css?v=1">
+<link rel="stylesheet" href="style.css?v=2">
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="swipe"></div>
+
+<div id="hud" hidden>
+  <div id="score">0</div>
+  <div id="slots"><span id="s-lip">💄</span><span id="s-dress">👗</span><span id="s-bow">🎀</span></div>
+  <div id="looks"><b id="looks-n">0</b> looks</div>
+  <canvas id="compact" width="160" height="160" aria-label="your model's look"></canvas>
+</div>
+<div id="flash"></div>
+<div id="banner" hidden></div>
+
+<section id="title" data-start>
+  <h1 class="title"><span>Runway</span> <em>Glow-Up</em></h1>
+  <p class="by">a game by Aunt Ceci</p>
+  <p class="how">swipe &larr; &rarr; to strut between lanes<br>grab makeup · clothes · hair bows<br>swipe &uarr; over hatboxes · &darr; under the clothes racks</p>
+  <p id="prompt" class="prompt"></p>
+</section>
+<section id="over" data-start hidden>
+  <h2 class="title" id="over-t">oops!</h2>
+  <p class="final"><span id="final">0</span></p>
+  <p class="by">best <span id="best">0</span> · <span id="over-looks">0</span> looks</p>
+  <div id="lookbook" hidden></div>
+  <p id="again" class="prompt">tap to strut again!</p>
+</section>
+
+<div id="rotate" hidden>turn me upright, darling!</div>
+<a id="hub" hidden>← arcade</a>
+<div id="err" role="alert" hidden></div>
+<script type="module" src="main.js?v=2"></script>
+</body>
+</html>

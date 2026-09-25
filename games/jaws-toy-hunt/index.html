@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#2f8fd6">
+<title>Jaws Toy Hunt</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🦈</text></svg>">
+<!-- Jaws Toy Hunt by Cory · 3d · island-3d · look "Big Blue Boardwalk" (toon-ink) · climax escape · started 2026-09-24
+     The idea, verbatim (DESIGN.md keeps the original): A game where you enter a huge store through the jaws of a giant shark and you have to run through the halls to find the coolest toys. There's an arcade machine where you can run up and push a button and it will make a fart noise. There's an area in the center of the store with a giant vat of water that has smaller sharks in it and you can stick your hands in to get the shark's attention, but you have to watch out for the store owner, who patrols the store looking for kids who put their hands in the water. -->
+<script type="importmap">{"imports":{
+  "three": "../../vendor/three/r170/three.module.min.js",
+  "three/addons/": "../../vendor/three/r170/addons/"
+}}</script>
+<link rel="stylesheet" href="./lib-2/shell.css?v=2">
+<link rel="stylesheet" href="style.css?v=2">
+</head>
+<body>
+<canvas id="view"></canvas>
+
+<div id="hud" hidden>
+  <span id="score">0</span>
+  <span id="toys"><b>TOYS</b> <span id="toy-n">0</span>/8</span>
+  <span id="strikes"><i></i><i></i><i></i></span>
+  <span id="hands" hidden>HANDS IN!</span>
+  <span id="timer" hidden>28</span>
+</div>
+<div id="banner" hidden><span id="banner-t"></span></div>
+<div id="pops"></div>
+<div id="flash"></div>
+
+<div id="controls" hidden>
+  <div id="stick-zone"><div id="stick-base"></div><div id="stick-knob"></div></div>
+  <button id="btn-action" aria-label="action"><span>GRAB</span></button>
+  <button id="btn-jump" aria-label="jump"><span>JUMP</span></button>
+</div>
+
+<section id="title" data-start>
+  <h1 class="title"><span>Jaws</span> <em>Toy Hunt</em></h1>
+  <p class="by">a game by Cory</p>
+  <p class="how">run in through the shark's mouth · find all 8 toys<br>GRAB at the tank to tease the sharks · GRAB the arcade for a FART<br>don't let the owner catch your hands in the water!</p>
+  <p id="prompt" class="prompt"></p>
+</section>
+<section id="over" data-start hidden>
+  <h2 class="title" id="over-t">KICKED OUT!</h2>
+  <p id="over-why" class="why"></p>
+  <p class="final"><span id="final">0</span></p>
+  <p id="newbest" hidden>new best!</p>
+  <p class="by">best <span id="best">0</span></p>
+  <p id="again" class="prompt">tap to run back in!</p>
+</section>
+
+<div id="rotate" hidden>turn me sideways! 🦈</div>
+<a id="hub" hidden>← arcade</a>
+<div id="err" role="alert" hidden></div>
+<script type="module" src="main.js?v=2"></script>
+</body>
+</html>

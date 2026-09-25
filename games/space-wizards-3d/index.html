@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#120a24">
+<title>Space Wizards 3D</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧙</text></svg>">
+<link rel="stylesheet" href="src/style.css">
+<script type="importmap">
+{ "imports": { "three": "./vendor/three/three.module.min.js", "three/addons/": "./vendor/three/addons/" } }
+</script>
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="pops"></div>
+<div id="flash"></div>
+
+<!-- in-flight HUD -->
+<div id="hud" class="hidden">
+  <div class="tl">
+    <div id="shields"></div>
+    <div id="weapon"><span class="ico">🪄</span><span class="nm">MAGIC WAND</span></div>
+  </div>
+  <div class="tc">
+    <div id="journey"></div>
+    <div id="bossbar" class="hidden"><div class="lbl">☠️ THE DARK LORD'S STAR FORTRESS</div><div class="track"><div class="fill"></div></div></div>
+  </div>
+  <div class="tr"><div id="score">0</div><button id="mute" aria-label="sound">🔊</button></div>
+  <div id="meter"><div class="animal">🦁</div><div class="vial"><div class="liquid"></div><div class="gloss"></div></div><div class="lbl">HOUSE POWER</div></div>
+  <div id="banner"><div class="big"></div><div class="sub"></div></div>
+  <div id="hint"></div>
+</div>
+
+<!-- touch controls: drag anywhere on the left to fly, buttons on the right -->
+<div id="touch" class="hidden">
+  <div id="dragzone"><div id="dragdot"></div></div>
+  <button id="btn-roll" class="tbtn">🌀<small>ROLL</small></button>
+  <button id="btn-swap" class="tbtn">🪄<small>SWAP</small></button>
+</div>
+
+<!-- screens -->
+<a id="to-arcade" class="to-arcade hidden" href="../../">← Arcade</a>
+<section id="scr-title" class="screen">
+  <div class="logo"><span class="w1">SPACE</span><span class="w2">WIZARDS</span><span class="three">✦ 3D ✦</span></div>
+  <p class="by">a game by <b>the Beach Crew</b> · Waccamaw Drive</p>
+  <button id="go-title" class="big-btn" disabled>Loading…</button>
+  <p id="title-stats" class="stats"></p>
+  <ul class="howto">
+    <li><b>Fly</b> arrows / WASD · drag on the left side of your phone</li>
+    <li><b>Zapping is automatic</b> — just aim!</li>
+    <li><b>Barrel roll</b> Space · 🌀 &nbsp; <b>Switch weapon</b> Shift · 🪄</li>
+  </ul>
+</section>
+
+<section id="scr-house" class="screen hidden">
+  <h2>Choose your house</h2>
+  <div id="houses"></div>
+  <p class="tip">◀ ▶ then Space — or tap your house</p>
+</section>
+
+<section id="scr-over" class="screen hidden">
+  <h2 id="over-title">GALAXY SAVED!</h2>
+  <p id="over-msg"></p>
+  <p id="over-level" class="lvl"></p>
+  <div class="scores"><div><span>SCORE</span><b id="over-score">0</b></div><div><span>BEST</span><b id="over-best">0</b></div></div>
+  <div class="row"><button id="go-again" class="big-btn">↻ FLY AGAIN</button><button id="go-house" class="small-btn">🏰 change house</button></div>
+</section>
+
+<div id="rotate">📱 ↻<br>Turn your phone sideways!</div>
+<noscript>This game needs JavaScript.</noscript>
+<script type="module" src="src/main.js"></script>
+</body>
+</html>

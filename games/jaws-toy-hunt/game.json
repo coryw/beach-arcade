@@ -1,0 +1,233 @@
+{
+  "slug": "jaws-toy-hunt",
+  "title": "Jaws Toy Hunt",
+  "by": "Cory",
+  "icon": "🦈",
+  "date": "2026-09-24",
+  "prompt": "A game where you enter a huge store through the jaws of a giant shark and you have to run through the halls to find the coolest toys. There's an arcade machine where you can run up and push a button and it will make a fart noise. There's an area in the center of the store with a giant vat of water that has smaller sharks in it and you can stick your hands in to get the shark's attention, but you have to watch out for the store owner, who patrols the store looking for kids who put their hands in the water.",
+  "engine": "three",
+  "lane": "3d",
+  "genre": "island-3d",
+  "orient": "landscape",
+  "players": 1,
+  "controls": "custom",
+  "controls_label": "🕹️ thumb stick + JUMP + GRAB · ⌨️ arrows/WASD + Space + X",
+  "look": {
+    "name": "Big Blue Boardwalk",
+    "lane": "toon-ink",
+    "palette": [
+      "#16213e",
+      "#2f8fd6",
+      "#ffb703",
+      "#e63946",
+      "#f4f1ea"
+    ],
+    "font": "bangers",
+    "tone": "neutral",
+    "camera": "follow",
+    "hero": "a kid drawn from lathes: a yellow tee lathe over blue-shorts lathe, a big sphere head under a red cap with a bill, capsule arms ending in real sphere hands that reach into the tank, capsule legs with sandals; the giant shark is a 25-unit lathe body with extruded dorsal, pectoral and tail fins, a white torus lip arch and cone teeth; the tank sharks are one lathe + extrude geometry instanced; the tank rim is a lathe ring with deformed-sphere rocks"
+  },
+  "climax": "escape",
+  "toolbox": 2,
+  "probes": [
+    {
+      "name": "stick-runs",
+      "phone": true,
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          800
+        ],
+        [
+          "drag",
+          "[data-arcade-control=stick]",
+          "0,-60",
+          400
+        ],
+        [
+          "adv",
+          200
+        ]
+      ],
+      "expect": {
+        "focus.z": "changed"
+      }
+    },
+    {
+      "name": "run-and-jump",
+      "phone": true,
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          800
+        ],
+        [
+          "multi",
+          "[data-arcade-control=stick]",
+          "60,0",
+          "[data-arcade-control=jump]"
+        ],
+        [
+          "adv",
+          150
+        ]
+      ],
+      "expect": {
+        "inputs.jump": ">0",
+        "focus.y": "changed"
+      }
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "front",
+      "query": "god=1",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          1500
+        ],
+        [
+          "hold",
+          "up",
+          3900
+        ],
+        [
+          "adv",
+          200
+        ],
+        [
+          "hold",
+          "x",
+          2500
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==front",
+        "hands": true,
+        "score": ">0"
+      },
+      "then": [
+        [
+          "adv",
+          6000
+        ]
+      ],
+      "expect_then": {
+        "error": null
+      }
+    },
+    {
+      "name": "late",
+      "query": "god=1&at=back",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          3000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==back"
+      },
+      "then": [
+        [
+          "adv",
+          8000
+        ]
+      ],
+      "expect_then": {
+        "error": null
+      }
+    },
+    {
+      "name": "closing",
+      "query": "god=1&at=closing",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          3000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==closing",
+        "closeT": ">0"
+      },
+      "then": [
+        [
+          "adv",
+          8000
+        ]
+      ],
+      "expect_then": {
+        "error": null,
+        "stage": "==closing"
+      }
+    }
+  ],
+  "exemplar": false,
+  "status": "playable",
+  "version": 2,
+  "check": {
+    "ok": true,
+    "gate": 2,
+    "hash": "ccbc7dc8e6f1c9d9e906f013fc3b3a54b6428992"
+  },
+  "review": {
+    "at": "2026-09-24T20:23:34",
+    "hash": "ccbc7dc8e6f1c9d9e906f013fc3b3a54b6428992",
+    "sheet_sha1": "8010286127843273f24e1e11f919ab2e54adbeb7",
+    "warnings": 1,
+    "tests": 5,
+    "judge": {
+      "model": "sonnet",
+      "verdict": "looks-like",
+      "pair": "shark-jaws-store",
+      "reason": "Candidate 2 and image 1 look like the same toy-store game. Both are set in a toy store with a checkered tile floor and shark elements: 2 has a giant shark mouth and a 'LIVE SHARK' sign, and 1 has a shark tank display. Both show toy shelves and boxes, and a small kid character. Both use the same '← ARCADE' back link with a bold cartoon font and rounded round action buttons (DASH in 1, GRAB and JUMP",
+      "cost_usd": 0.034233
+    },
+    "notes": "v2 polish. Read sheet.png + phone-play.png: the lot / jaws / kid / rope / red chair / glass storefront panels unchanged and readable; scn-closing shows CLOSING TIME with amber light, the red 18 s clock under the score, TOYS 8/8, the kid in the aisle; probe-shut showed the shark head sunk. 118 calls, overdraw 4.07 (the same single soft warning as v1), 5 passing tests. Judge's v1 looks-like pair is the idea box's build of this same prompt."
+  }
+}

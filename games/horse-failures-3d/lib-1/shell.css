@@ -1,0 +1,17 @@
+/* shell.css — layout mechanics only: no colors, no fonts (those are the game's style.css). kit/three/README.md */
+:root {
+  --sa-t: var(--sa-t-override, env(safe-area-inset-top, 0px));
+  --sa-r: var(--sa-r-override, env(safe-area-inset-right, 0px));
+  --sa-b: var(--sa-b-override, env(safe-area-inset-bottom, 0px));
+  --sa-l: var(--sa-l-override, env(safe-area-inset-left, 0px));
+}
+html { height: 100%; }
+body {
+  position: fixed; inset: 0; margin: 0; overflow: hidden;
+  touch-action: none; user-select: none; -webkit-user-select: none;
+  -webkit-touch-callout: none; overscroll-behavior: none; -webkit-text-size-adjust: 100%;
+}
+canvas { display: block; width: 100%; height: 100%; }
+[hidden] { display: none !important; }
+[data-screen]:not(body) { position: absolute; inset: 0; }   /* body carries data-screen too (the current screen) */
+[data-arcade-control], [data-start] { touch-action: none; }

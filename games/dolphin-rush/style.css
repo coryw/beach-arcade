@@ -1,0 +1,44 @@
+/* Dolphin Rush — the look: "Sunset Lagoon Leap" (lowpoly-pastel). Every color and the face live here, never in the lib folder. */
+@font-face { font-family: "Pacifico"; src: url("../../vendor/fonts/pacifico/pacifico-latin-400.woff2") format("woff2"); font-display: block; }
+:root {
+  --c0: #ffc49b; --c1: #1d5f8f; --c2: #9cc3ea; --c3: #ff4f9a; --c4: #ffd23f;
+  --face: "Pacifico", ui-rounded, system-ui, sans-serif;
+}
+body { background: var(--c1); color: var(--c4); font-family: var(--face); -webkit-tap-highlight-color: transparent; }
+
+[data-screen]:not(body) {   /* body carries data-screen as well: the current screen's name */
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center;
+  box-sizing: border-box; padding: calc(var(--sa-t) + 16px) calc(var(--sa-r) + 16px) calc(var(--sa-b) + 16px) calc(var(--sa-l) + 16px);
+}
+.title { margin: 0; font-size: clamp(40px, 11vmin, 104px); line-height: .95; color: var(--c4); text-shadow: 0 4px 0 var(--c0); }
+.by { margin: 0; font-size: clamp(16px, 4vmin, 26px); color: var(--c2); text-shadow: 0 2px 0 var(--c0); }
+.final { margin: 0; font-size: clamp(48px, 14vmin, 120px); color: var(--c3); text-shadow: 0 4px 0 var(--c0); }
+.prompt { margin: 12px 0 0; font-size: clamp(18px, 4.5vmin, 30px); color: var(--c3); animation: pulse 1.1s ease-in-out infinite alternate; }
+@keyframes pulse { to { transform: scale(1.08); } }
+
+#hud { position: absolute; top: calc(var(--sa-t) + 10px); left: 0; right: 0; text-align: center; pointer-events: none;
+  font-size: clamp(28px, 7vmin, 48px); color: var(--c4); text-shadow: 0 3px 0 var(--c0); }
+#controls button {
+  position: absolute; bottom: calc(var(--sa-b) + 20px); width: 84px; height: 84px; border-radius: 50%;
+  border: 4px solid var(--c0); background: var(--c3); color: var(--c0); font: 28px var(--face); opacity: .85;
+}
+#btn-left { left: calc(var(--sa-l) + 20px); }
+#btn-right { right: calc(var(--sa-r) + 20px); }
+#controls button.down { transform: scale(.9); opacity: 1; }
+
+#rotate { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; padding: 24px; text-align: center;
+  background: var(--c1); color: var(--c4); font-size: 30px; }
+#hub { position: absolute; z-index: 10; top: calc(var(--sa-t) + 10px); left: calc(var(--sa-l) + 12px); color: var(--c4); text-decoration: none; font-size: 18px; }
+#err { position: absolute; z-index: 30; left: 12px; right: 12px; bottom: calc(var(--sa-b) + 12px); padding: 12px 14px; border-radius: 12px;
+  white-space: pre-wrap; font: 15px/1.35 ui-monospace, monospace; background: var(--c4); color: var(--c0); }
+
+/* Sunset Lagoon Leap — the sunset card: gold script with a deep-sea drop and a peach glow */
+.title { color: var(--c4); text-shadow: 0 4px 0 var(--c1), 0 0 22px rgba(255, 79, 154, .55); transform: rotate(-4deg); }
+.by { color: #fff6ec; text-shadow: 0 2px 0 var(--c1); }
+.how { margin: 4px 0 0; font: 600 clamp(14px, 3.6vmin, 20px) ui-rounded, system-ui, sans-serif; color: #fff6ec;
+  background: rgba(29, 95, 143, .72); padding: 6px 14px; border-radius: 999px; }
+.prompt { color: var(--c3); text-shadow: 0 2px 0 #fff6ec; }
+.final { color: var(--c4); text-shadow: 0 4px 0 var(--c1); }
+#hud { color: var(--c4); text-shadow: 0 3px 0 var(--c1); display: flex; flex-direction: column; align-items: center; gap: 0; }
+#combo { font-size: clamp(18px, 4.6vmin, 28px); color: var(--c3); text-shadow: 0 2px 0 #fff6ec; min-height: 1.2em; }
+#swipe { position: absolute; left: 0; right: 0; bottom: 0; top: calc(var(--sa-t) + 120px); pointer-events: auto; touch-action: none; }

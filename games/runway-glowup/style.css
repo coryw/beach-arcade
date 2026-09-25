@@ -1,0 +1,52 @@
+/* Runway Glow-Up — the look: "Blush Runway Couture" (lowpoly-pastel). Every color and the face live here, never in the lib folder. */
+@font-face { font-family: "Abril Fatface"; src: url("../../vendor/fonts/abril-fatface/abril-fatface-latin-400.woff2") format("woff2"); font-display: block; }
+:root {
+  --c0: #f4d6e0; --c1: #8e7dbe; --c2: #e8467c; --c3: #2b2d42; --c4: #f2c14e;
+  --face: "Abril Fatface", Didot, "Bodoni 72", serif;
+}
+body { background: var(--c0); color: var(--c3); font-family: var(--face); -webkit-tap-highlight-color: transparent; }
+
+[data-screen]:not(body) {   /* body carries data-screen as well: the current screen's name */
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center;
+  box-sizing: border-box; padding: calc(var(--sa-t) + 16px) calc(var(--sa-r) + 16px) calc(var(--sa-b) + 16px) calc(var(--sa-l) + 16px);
+}
+#title, #over { background: linear-gradient(180deg, rgba(244, 214, 224, 0) 20%, rgba(244, 214, 224, .55) 50%, rgba(244, 214, 224, 0) 80%); }
+/* magazine-cover type: a tall serif, tight leading, the second word in hot-pink italic with a gold drop */
+.title { margin: 0; font-size: clamp(46px, 13vmin, 112px); line-height: .9; font-weight: 400; letter-spacing: .01em;
+  color: var(--c3); text-shadow: 0 3px 0 var(--c0), 0 6px 0 rgba(43, 45, 66, .18); text-transform: uppercase; }
+.title span { display: block; }
+.title em { display: block; font-style: italic; color: var(--c2); text-shadow: 3px 3px 0 var(--c4), 0 7px 0 rgba(43, 45, 66, .2); text-transform: none; }
+.by { margin: 0; font-size: clamp(16px, 4.2vmin, 26px); color: var(--c3); letter-spacing: .12em; text-transform: uppercase; }
+.how { margin: 4px 0 0; font: clamp(14px, 3.6vmin, 20px)/1.45 ui-rounded, system-ui, sans-serif; font-weight: 700; color: var(--c3);
+  background: rgba(244, 214, 224, .78); border: 2px solid var(--c4); border-radius: 14px; padding: 8px 14px; }
+.final { margin: 0; font-size: clamp(56px, 16vmin, 130px); color: var(--c2); text-shadow: 3px 3px 0 var(--c4); }
+.prompt { margin: 12px 0 0; font-size: clamp(20px, 5vmin, 32px); color: var(--c0); background: var(--c3); padding: 6px 20px; border-radius: 999px;
+  animation: pulse 1.1s ease-in-out infinite alternate; }
+@keyframes pulse { to { transform: scale(1.07); } }
+
+#swipe { position: absolute; left: 0; right: 0; top: calc(var(--sa-t) + 12vh); bottom: 0; touch-action: none; }
+#hud { position: absolute; top: calc(var(--sa-t) + 8px); left: 0; right: 0; height: 11vh; pointer-events: none; }
+#score { position: absolute; left: 0; right: 0; top: 0; text-align: center; font-size: clamp(30px, 7.5vmin, 50px); color: var(--c3); text-shadow: 0 3px 0 var(--c0); }
+#slots { position: absolute; left: 0; right: 0; top: clamp(38px, 9vmin, 60px); text-align: center; font-size: clamp(18px, 4.6vmin, 28px); }
+#slots span { display: inline-block; margin: 0 4px; padding: 1px 6px; border-radius: 999px; border: 2px solid var(--c3); background: rgba(244, 214, 224, .7);
+  filter: grayscale(1); opacity: .45; transition: none; }
+#slots span.on { filter: none; opacity: 1; border-color: var(--c4); background: var(--c2); }
+#looks { position: absolute; left: calc(var(--sa-l) + 12px); top: 34px; font-size: clamp(14px, 3.6vmin, 20px); color: var(--c3); }
+#looks b { color: var(--c2); font-size: 1.4em; font-weight: 400; }
+#compact { position: absolute; right: calc(var(--sa-r) + 10px); top: 0; width: clamp(64px, 17vmin, 96px); height: clamp(64px, 17vmin, 96px); }
+#flash { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+
+#rotate { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; padding: 24px; text-align: center;
+  background: var(--c0); color: var(--c2); font-size: 30px; }
+#hub { position: absolute; z-index: 10; top: calc(var(--sa-t) + 8px); left: calc(var(--sa-l) + 12px); color: var(--c3); text-decoration: none; font-size: 16px; }
+#err { position: absolute; z-index: 30; left: 12px; right: 12px; bottom: calc(var(--sa-b) + 12px); padding: 12px 14px; border-radius: 12px;
+  white-space: pre-wrap; font: 15px/1.35 ui-monospace, monospace; background: var(--c3); color: var(--c0); }
+/* polish v2: the score pops on every pickup; a magazine-cover banner for Full Looks and the Photo Finale; the over card's Lookbook */
+#score.pop { animation: spop .28s ease-out; }
+@keyframes spop { 0% { transform: scale(1.35); color: var(--c2); } 100% { transform: scale(1); } }
+#banner { position: absolute; left: 0; right: 0; top: 24vh; z-index: 6; pointer-events: none; text-align: center; font-size: clamp(34px, 10vmin, 76px);
+  font-style: italic; color: var(--c2); text-shadow: 3px 3px 0 var(--c4), 0 6px 0 rgba(43, 45, 66, .25); }
+#banner.in { animation: bin .35s cubic-bezier(.2, 1.6, .4, 1); }
+@keyframes bin { from { transform: scale(.4) rotate(-6deg); opacity: 0; } }
+#lookbook { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; max-width: 360px; }
+#lookbook canvas { width: clamp(44px, 12vmin, 64px); height: clamp(44px, 12vmin, 64px); }

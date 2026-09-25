@@ -1,0 +1,22 @@
+{
+  "slug": "puppy-adventures-3d",
+  "title": "Puppy Adventures 3D",
+  "by": "the Beach Crew",
+  "icon": "🐶",
+  "date": "2026-09-24",
+  "engine": "three",
+  "orient": "landscape",
+  "controls": "joystick+ab",
+  "controls_label": "🕹️ thumb joystick + JUMP / BARK",
+  "players": 1,
+  "prompt": "A puppy adventure game. Weapons and rivalry. Puppy love. No blood, that's important. No bad words. Take you away when you die. Birds. It's three-dimensional. Ice cream cones for health. Pizza for lunch.",
+  "source": "https://github.com/coryw/puppy-adventures",
+  "url": "https://coryw.github.io/puppy-adventures/",
+  "status": "playable",
+  "version": 1,
+  "check": {
+    "ok": true,
+    "gate": 2,
+    "hash": "65be272bd7b13ac5567a1e65b9d83346af1bd496"
+  }
+}

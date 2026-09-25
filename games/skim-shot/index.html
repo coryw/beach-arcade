@@ -1,0 +1,1881 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#f0dfb8">
+<title>Skim Shot</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏄</text></svg>">
+<style>
+/* gk.css — the shell every game sits in. Fullscreen canvas, no scroll, no zoom, safe on iOS. */
+html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #000; }
+body { position: fixed; inset: 0; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; overscroll-behavior: none; }
+canvas#game { display: block; position: fixed; inset: 0; touch-action: none; image-rendering: pixelated; }
+#rotate { display: none; position: fixed; inset: 0; z-index: 10; background: #0f172a; color: #fff; font: 700 28px system-ui, sans-serif; align-items: center; justify-content: center; text-align: center; padding: 24px; }
+@media (orientation: portrait) and (pointer: coarse) { body[data-orient="landscape"] #rotate { display: flex; } }
+@media (orientation: landscape) and (pointer: coarse) { body[data-orient="portrait"] #rotate { display: flex; } }
+/* kit 2: the page takes the game's own palette and face (GK.start sets --gk-*), and nothing is drawn under the notch. */
+body[data-kit="2"], html:has(body[data-kit="2"]) { background: var(--gk-bg, #000); }
+body[data-kit="2"] #rotate { background: var(--gk-bg, #000); color: var(--gk-ink, #fff); font: 900 28px var(--gk-font, system-ui);
+  padding: calc(24px + var(--sa-top-override, env(safe-area-inset-top, 0px))) calc(24px + var(--sa-right-override, env(safe-area-inset-right, 0px)))
+           calc(24px + var(--sa-bottom-override, env(safe-area-inset-bottom, 0px))) calc(24px + var(--sa-left-override, env(safe-area-inset-left, 0px))); }
+#gk-safe { position: fixed; left: 0; top: 0; width: 0; height: 0; visibility: hidden; pointer-events: none; }
+
+</style>
+</head>
+<body data-orient="portrait">
+<div id="rotate">↻ Skim Shot</div>
+<canvas id="game"></canvas>
+<div id="sling" data-arcade-control="sling" hidden><span>⇣ pull · let go</span></div>
+<style>
+#sling { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); width: 64vw; max-width: 300px; height: 92px; border-radius: 46px;
+  background: rgba(255,122,26,0.22); border: 2px solid rgba(255,255,255,0.45); pointer-events: none; display: flex; align-items: center; justify-content: center;
+  color: #fff; font: 700 18px/1 -apple-system, "Segoe UI", sans-serif; letter-spacing: .04em; text-shadow: 0 2px 6px rgba(59,42,18,.5); opacity: .55; z-index: 5; }
+#sling[hidden] { display: none; }
+</style>
+<script>
+/*! gk.js v2 — the game-maker 2D kit. One file, no dependencies, no build step. Global: window.GK.
+ *  Canvas 2D · fixed-step loop (hitstop, slowmo) · test hooks (render_game_to_text, advanceTime, __arcade) ·
+ *  seeded RNG · keyboard + touch + gamepad · scenes + transitions · tilemaps + platformer · sprites · tweens ·
+ *  painters, parallax, light, post · particles + trails · synthesized sfx + songs · high scores.
+ *  kit 1 (the default) is every legacy game, unchanged. GK.start({kit: 2, theme, view, ...}) opts into the identity
+ *  layer: no shared title, game-over, banner or control skin — the game draws its own. API: kit/README.md.
+ */
+(function () {
+  "use strict";
+  const GK = { version: "2.0.0", kit: 1, ready: false, lastError: null,
+               stats: { frames: 0, renders: 0, time: 0, stepMs: 0, inputs: {} } };
+  const STEP = 1 / 60, TAU = Math.PI * 2;
+  let opts = {}, K2 = false, theme = null;
+
+  // ───────────────────────────── URL parameters (§3.1) ─────────────────────────────
+  // ?seed=N ?arcade=1 ?q=N ?nobloom=1 ?god=1 ?at=<stage> ?sa=T,R,B,L — the names every v2 game honors.
+  const qs = new URLSearchParams(location.search);
+  const num = (k) => (qs.has(k) && qs.get(k) !== "" && isFinite(+qs.get(k)) ? +qs.get(k) : null);
+  const flag = (k) => qs.has(k) && qs.get(k) !== "0" && qs.get(k) !== "false";
+  const saRaw = qs.has("sa") ? qs.get("sa").split(",").map(Number) : null;
+  GK.params = { seed: num("seed"), arcade: flag("arcade"), q: num("q"), nobloom: flag("nobloom"), god: flag("god"),
+                at: qs.get("at"), sa: saRaw && saRaw.length === 4 && saRaw.every(isFinite) ? saRaw : null, raw: qs };
+
+  // ───────────────────────────── random & math ─────────────────────────────
+  // Game randomness is Math.random until GK.seed(n) (or ?seed=N) switches it to mulberry32 — and then Math.random is
+  // patched too, so game code that calls it directly is deterministic under the gate. Kit visuals (shake, grain,
+  // tiles, stars, sfx variation) never draw from this stream: they use hash noise, so rendering cannot shift the game.
+  let rnd = Math.random;
+  const mulberry32 = (seed) => { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; };
+  GK.rng = mulberry32;
+  GK.seed = (n) => { rnd = mulberry32(Math.floor(Number(n)) || 0); Math.random = rnd; return rnd; };
+  if (GK.params.seed !== null) GK.seed(GK.params.seed);
+  GK.random = () => rnd();
+  GK.clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  GK.lerp = (a, b, t) => a + (b - a) * t;
+  GK.rand = (a = 1, b) => (b === undefined ? rnd() * a : a + rnd() * (b - a));
+  GK.randInt = (a, b) => Math.floor(GK.rand(a, b + 1));
+  GK.pick = (arr) => arr[Math.floor(rnd() * arr.length)];
+  GK.chance = (p) => rnd() < p;
+  GK.dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  GK.angleTo = (a, b) => Math.atan2(b.y - a.y, b.x - a.x);
+  GK.wrap = (v, min, max) => (v < min ? max - (min - v) : v > max ? min + (v - max) : v);
+  GK.sign = (v) => (v > 0 ? 1 : v < 0 ? -1 : 0);
+  GK.approach = (v, target, step) => (v < target ? Math.min(v + step, target) : Math.max(v - step, target));
+  const mod = (a, n) => ((a % n) + n) % n;
+
+  // hash noise: deterministic, never touches the game's random stream. noise1/noise2 return 0..1.
+  const hash2 = (x, y) => { let h = Math.imul(x | 0, 374761393) ^ Math.imul((y | 0) + 0x9E3779B9, 668265263);
+    h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+  const smooth = (t) => t * t * (3 - 2 * t);
+  GK.noise1 = (x) => { const i = Math.floor(x); return GK.lerp(hash2(i, 0), hash2(i + 1, 0), smooth(x - i)); };
+  GK.noise2 = (x, y) => { const i = Math.floor(x), j = Math.floor(y), fx = smooth(x - i), fy = smooth(y - j);
+    return GK.lerp(GK.lerp(hash2(i, j), hash2(i + 1, j), fx), GK.lerp(hash2(i, j + 1), hash2(i + 1, j + 1), fx), fy); };
+  const noiseP = (x, period, seed) => { const i = Math.floor(x); return GK.lerp(hash2(mod(i, period), seed), hash2(mod(i + 1, period), seed), smooth(x - i)); };
+  const fbmP = (x, period, seed, oct = 3) => { let v = 0, a = 0.5, f = 1, n = 0; for (let o = 0; o < oct; o++) { v += a * noiseP(x * f, period * f, seed + o * 17); n += a; a *= 0.5; f *= 2; } return v / n; };
+
+  GK.ease = {
+    linear: (t) => t, quadIn: (t) => t * t, quadOut: (t) => t * (2 - t), quadInOut: (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2),
+    cubicIn: (t) => t * t * t, cubicOut: (t) => 1 - (1 - t) ** 3, cubicInOut: (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2),
+    sineInOut: (t) => -(Math.cos(Math.PI * t) - 1) / 2,
+    backIn: (t) => 2.70158 * t * t * t - 1.70158 * t * t, backOut: (t) => 1 + 2.70158 * (t - 1) ** 3 + 1.70158 * (t - 1) ** 2,
+    elasticOut: (t) => (t <= 0 ? 0 : t >= 1 ? 1 : 2 ** (-10 * t) * Math.sin((t * 10 - 0.75) * (TAU / 3)) + 1),
+    bounceOut: (t) => { const n = 7.5625, d = 2.75; if (t < 1 / d) return n * t * t; if (t < 2 / d) return n * (t -= 1.5 / d) * t + 0.75;
+      if (t < 2.5 / d) return n * (t -= 2.25 / d) * t + 0.9375; return n * (t -= 2.625 / d) * t + 0.984375; },
+  };
+
+  // colors: parse "#rgb" "#rrggbb" "#rrggbbaa" "rgb()/rgba()" → {r,g,b,a}; mix two colors; lighten (+) / darken (−)
+  const colorCache = new Map();
+  GK.color = (c) => {
+    if (colorCache.has(c)) return colorCache.get(c); let r = 255, g = 255, b = 255, a = 1, m;
+    if (typeof c === "string" && c[0] === "#") { let h = c.slice(1); if (h.length <= 4) h = [...h].map((x) => x + x).join("");
+      r = parseInt(h.slice(0, 2), 16); g = parseInt(h.slice(2, 4), 16); b = parseInt(h.slice(4, 6), 16); if (h.length >= 8) a = parseInt(h.slice(6, 8), 16) / 255; }
+    else if (typeof c === "string" && (m = /rgba?\(([^)]+)\)/.exec(c))) { const p = m[1].split(/[ ,/]+/).filter(Boolean).map(parseFloat); [r, g, b] = p; if (p.length > 3) a = p[3]; }
+    const o = { r, g, b, a }; if (colorCache.size < 512) colorCache.set(c, o); return o;
+  };
+  const hex2 = (v) => Math.round(GK.clamp(v, 0, 255)).toString(16).padStart(2, "0");
+  GK.mix = (c1, c2, t) => { const a = GK.color(c1), b = GK.color(c2), al = GK.lerp(a.a, b.a, t);
+    return "#" + hex2(GK.lerp(a.r, b.r, t)) + hex2(GK.lerp(a.g, b.g, t)) + hex2(GK.lerp(a.b, b.b, t)) + (al < 1 ? hex2(al * 255) : ""); };
+  GK.shade = (c, amt) => GK.mix(c, amt >= 0 ? "#ffffff" : "#000000", Math.abs(amt));
+  GK.alpha = (c, a) => { const o = GK.color(c); return `rgba(${o.r},${o.g},${o.b},${a * o.a})`; };
+
+  // center-of-box helpers (entities are {x,y,w,h}; x,y is the TOP-LEFT corner)
+  GK.cx = (e) => e.x + e.w / 2;
+  GK.cy = (e) => e.y + e.h / 2;
+  GK.hit = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  GK.hitCircle = (a, b) => Math.hypot(GK.cx(a) - GK.cx(b), GK.cy(a) - GK.cy(b)) < (a.r || Math.min(a.w, a.h) / 2) + (b.r || Math.min(b.w, b.h) / 2);
+  GK.contains = (e, px, py) => px >= e.x && px <= e.x + e.w && py >= e.y && py <= e.y + e.h;
+  GK.inBounds = (e, pad = 0) => e.x + e.w >= -pad && e.x <= GK.width + pad && e.y + e.h >= -pad && e.y <= GK.height + pad;
+
+  // ───────────────────────────── canvas, view & sizing ─────────────────────────────
+  // view.mode: "fit" (kit 1 and default: fixed logical size, letterboxed) · "expand" (short side fixed, the long side
+  // grows up to maxAspect, so a phone has no bars; GK.width/GK.height change and opts.onResize(w, h) runs) ·
+  // "pixel" (a width×height buffer, integer upscale, nearest-neighbour).
+  let canvas, mainCtx, ctx, dpr = 1, scale = 1, offX = 0, offY = 0, viewW = 0, viewH = 0, buf = null, bufCtx = null;
+  let tgt = { ox: 0, oy: 0, w: 1, h: 1 }, baseT = [1, 0, 0, 1, 0, 0];
+  GK.width = 800; GK.height = 450; GK.cam = { x: 0, y: 0, zoom: 1, rot: 0 };
+  GK.view = { mode: "fit" };
+  GK.isTouch = ("ontouchstart" in window) || navigator.maxTouchPoints > 0;
+  const isPixel = () => GK.view.mode === "pixel";
+
+  function resize() {
+    viewW = window.innerWidth; viewH = window.innerHeight;
+    dpr = Math.min(window.devicePixelRatio || 1, 3);
+    canvas.width = Math.round(viewW * dpr); canvas.height = Math.round(viewH * dpr);
+    canvas.style.width = viewW + "px"; canvas.style.height = viewH + "px";
+    const v = GK.view, pw = GK.width, ph = GK.height;
+    if (v.mode === "expand") {
+      if (v.orient === "portrait") { GK.width = v.width; GK.height = Math.round(GK.clamp(v.width * viewH / viewW, v.height, v.width * v.maxAspect)); }
+      else { GK.height = v.height; GK.width = Math.round(GK.clamp(v.height * viewW / viewH, v.width, v.height * v.maxAspect)); }
+    }
+    const fitScale = Math.min(viewW / GK.width, viewH / GK.height);
+    scale = v.mode === "pixel" && fitScale >= 1 ? Math.floor(fitScale) : fitScale;
+    offX = (viewW - GK.width * scale) / 2; offY = (viewH - GK.height * scale) / 2;
+    if (v.mode === "pixel") { offX = Math.floor(offX); offY = Math.floor(offY); }
+    GK.scale = scale;
+    if (document.body) readSafe();
+    if (K2) buildControls();
+    if ((pw !== GK.width || ph !== GK.height || !resize.done) && opts.onResize) { try { opts.onResize(GK.width, GK.height); } catch (e) { fail(e); } }
+    resize.done = true;
+  }
+  GK.toGame = (clientX, clientY) => ({ x: (clientX - offX) / scale, y: (clientY - offY) / scale });
+  // The painted view in CSS px. With letterbox ART (theme.letterbox is a function) the game paints the whole screen.
+  GK.viewRect = () => (K2 && typeof theme.letterbox === "function" ? { x: 0, y: 0, w: viewW, h: viewH } : { x: offX, y: offY, w: GK.width * scale, h: GK.height * scale });
+
+  // Safe-area insets from a probe div (env(safe-area-inset-*)); ?sa=T,R,B,L fakes them through --sa-*-override.
+  // GK.safeCss = the screen's insets in CSS px; GK.safe = how far they reach INTO the view, in logical px.
+  GK.safe = { top: 0, right: 0, bottom: 0, left: 0 }; GK.safeCss = { top: 0, right: 0, bottom: 0, left: 0 };
+  let safeProbe = null;
+  function readSafe() {
+    if (!safeProbe) {
+      safeProbe = document.createElement("div"); safeProbe.id = "gk-safe";
+      safeProbe.style.cssText = "position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;pointer-events:none;" +
+        ["top", "right", "bottom", "left"].map((k) => `padding-${k}:var(--sa-${k}-override, env(safe-area-inset-${k}, 0px))`).join(";");
+      document.body.appendChild(safeProbe);
+    }
+    if (GK.params.sa) ["top", "right", "bottom", "left"].forEach((k, i) => document.documentElement.style.setProperty(`--sa-${k}-override`, GK.params.sa[i] + "px"));
+    const cs = getComputedStyle(safeProbe), px = (k) => parseFloat(cs[`padding${k}`]) || 0;
+    const s = { top: px("Top"), right: px("Right"), bottom: px("Bottom"), left: px("Left") }; GK.safeCss = s;
+    const vw = GK.width * scale, vh = GK.height * scale;
+    GK.safe = { top: Math.max(0, s.top - offY) / scale, left: Math.max(0, s.left - offX) / scale,
+                bottom: Math.max(0, s.bottom - (viewH - offY - vh)) / scale, right: Math.max(0, s.right - (viewW - offX - vw)) / scale };
+  }
+  // A point inside the view that stays clear of the safe-area insets: HUD placement. corner: tl tr bl br t b l r c.
+  GK.anchor = (corner = "tl", dx = 0, dy = 0) => {
+    const s = GK.safe, W = GK.width, H = GK.height, c = corner;
+    const x = c.includes("l") ? s.left + dx : c.includes("r") ? W - s.right - dx : W / 2 + dx;
+    const y = c.includes("t") ? s.top + dy : c.includes("b") ? H - s.bottom - dy : H / 2 + dy;
+    return { x, y };
+  };
+
+  // ───────────────────────────── input ─────────────────────────────
+  // Names: left right up down a b start.  key = ANY player; p1/p2 = specific players.
+  // Every key action, virtual-button hit, zone touch, stick drag and tap is counted in GK.stats.inputs[name].
+  const KEYMAP = {
+    any: { ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down",
+           KeyA: "left", KeyD: "right", KeyW: "up", KeyS: "down",
+           Space: "a", KeyZ: "a", KeyJ: "a", KeyF: "a", KeyK: "b", KeyX: "b", KeyG: "b", ShiftLeft: "b", ShiftRight: "b", KeyL: "b",
+           Enter: "start", NumpadEnter: "start", Escape: "start" },
+    p1:  { KeyA: "left", KeyD: "right", KeyW: "up", KeyS: "down", KeyF: "a", KeyG: "b", Space: "a", Enter: "start" },
+    p2:  { ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down", KeyK: "a", KeyL: "b", Slash: "a", Period: "b", Enter: "start" },
+  };
+  function makeInput() {
+    const held = new Set(), pressed = new Set(), released = new Set();
+    return {
+      held: (n) => held.has(n), pressed: (n) => pressed.has(n), released: (n) => released.has(n),
+      axisX() { return (held.has("right") ? 1 : 0) - (held.has("left") ? 1 : 0); },
+      axisY() { return (held.has("down") ? 1 : 0) - (held.has("up") ? 1 : 0); },
+      _down(n) { if (!held.has(n)) pressed.add(n); held.add(n); },
+      _up(n) { if (held.has(n)) released.add(n); held.delete(n); },
+      _tick() { pressed.clear(); released.clear(); },
+      _clear() { held.clear(); pressed.clear(); released.clear(); },
+    };
+  }
+  GK.key = makeInput(); GK.p1 = makeInput(); GK.p2 = makeInput();
+  GK.anyPressed = () => ["a", "b", "start"].some((n) => GK.key.pressed(n)) || GK.pointer.justDown;
+  GK.pointer = { x: 0, y: 0, down: false, justDown: false, justUp: false };
+  GK.touches = []; // [{id,x,y}] live touches in game coords (excludes virtual-control touches)
+  const touchQueue = []; // taps this frame: [{x,y}]
+  GK.taps = [];
+  const count = (n) => { GK.stats.inputs[n] = (GK.stats.inputs[n] || 0) + 1; };
+
+  function keyDown(e) {
+    if (e.repeat) return;
+    if (KEYMAP.any[e.code]) count(KEYMAP.any[e.code]);
+    for (const who of ["any", "p1", "p2"]) { const n = KEYMAP[who][e.code]; if (n) GK[who === "any" ? "key" : who]._down(n); }
+    if (["Space", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.code)) e.preventDefault();
+    unlockAudio();
+  }
+  function keyUp(e) {
+    for (const who of ["any", "p1", "p2"]) { const n = KEYMAP[who][e.code]; if (n) GK[who === "any" ? "key" : who]._up(n); }
+  }
+
+  // gamepads: pad 0 → p1 (+any), pad 1 → p2 (+any)
+  const padState = [{}, {}];
+  function pollPads() {
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    for (let i = 0; i < 2; i++) {
+      const pad = pads && pads[i]; const who = i === 0 ? GK.p1 : GK.p2; if (!pad) continue;
+      const ax = pad.axes[0] || 0, ay = pad.axes[1] || 0;
+      const now = {
+        left: ax < -0.5 || (pad.buttons[14] && pad.buttons[14].pressed), right: ax > 0.5 || (pad.buttons[15] && pad.buttons[15].pressed),
+        up: ay < -0.5 || (pad.buttons[12] && pad.buttons[12].pressed), down: ay > 0.5 || (pad.buttons[13] && pad.buttons[13].pressed),
+        a: pad.buttons[0] && pad.buttons[0].pressed, b: (pad.buttons[1] && pad.buttons[1].pressed) || (pad.buttons[2] && pad.buttons[2].pressed),
+        start: pad.buttons[9] && pad.buttons[9].pressed,
+      };
+      for (const n in now) {
+        if (now[n] && !padState[i][n]) { who._down(n); GK.key._down(n); count(n); }
+        if (!now[n] && padState[i][n]) { who._up(n); GK.key._up(n); }
+      }
+      padState[i] = now;
+    }
+  }
+
+  // ───────────────────────────── virtual touch controls ─────────────────────────────
+  // layouts: 'dpad+ab' (default) · 'lr+a' (left/right + jump) · 'joystick+ab' · 'tap' (none drawn) · 'none'
+  // kit 1: buttons live in GAME coords (the legacy positions). kit 2: buttons live in CSS px, anchored to the screen's
+  // thumb corners outside the safe-area insets, and the game's skin function draws them. `zones` are invisible touch
+  // regions that press an action while held (view fractions).
+  const vc = { layout: "dpad+ab", buttons: [], zones: [], zoneSpecs: [], active: {}, stick: null, visible: false, touched: false,
+               space: "game", skin: null, labels: {}, icons: {}, floating: false, opacity: 0.55, size: 1 };
+  const LEGACY_LABEL = { left: "◀", right: "▶", up: "▲", down: "▼", a: "A", b: "B" };
+  function buildControls() {
+    const held = vc.stick && vc.stick.id !== null ? vc.stick : null;
+    vc.buttons = []; vc.stick = null;
+    if (vc.space === "css") buildControlsCss();
+    else {
+      const W = GK.width, H = GK.height, r = 34;
+      if (vc.layout === "dpad+ab" || vc.layout === "joystick+ab") {
+        if (vc.layout === "dpad+ab") {
+          const cx = 90, cy = H - 90, d = 52;
+          vc.buttons.push({ n: "left", x: cx - d, y: cy, r, label: "◀" }, { n: "right", x: cx + d, y: cy, r, label: "▶" },
+                          { n: "up", x: cx, y: cy - d, r, label: "▲" }, { n: "down", x: cx, y: cy + d, r, label: "▼" });
+        } else vc.stick = { cx: 100, cy: H - 100, r: 60, dx: 0, dy: 0, id: null };
+        vc.buttons.push({ n: "a", x: W - 70, y: H - 70, r: 38, label: "A" }, { n: "b", x: W - 150, y: H - 110, r: 32, label: "B" });
+      } else if (vc.layout === "lr+a") {
+        vc.buttons.push({ n: "left", x: 70, y: H - 70, r: 40, label: "◀" }, { n: "right", x: 170, y: H - 70, r: 40, label: "▶" },
+                        { n: "a", x: W - 70, y: H - 70, r: 44, label: "A" });
+      }
+      for (const b of vc.buttons) { b.kind = "button"; if (vc.labels[b.n] !== undefined) b.label = vc.labels[b.n]; b.icon = vc.icons[b.n] ?? null; }
+    }
+    if (held && vc.stick) Object.assign(vc.stick, { dx: held.dx, dy: held.dy, id: held.id, counted: held.counted });
+    vc.zones = vc.zoneSpecs.map((z) => ({ n: z.n, rect: z.rect }));
+  }
+  function buildControlsCss() {
+    const s = GK.safeCss, m = 16, r = 34 * vc.size, L = s.left + m, R = viewW - s.right - m, B = viewH - s.bottom - m;
+    const btn = (n, x, y, rr) => vc.buttons.push({ n, kind: "button", x, y, r: rr, label: vc.labels[n] ?? LEGACY_LABEL[n] ?? n.toUpperCase(), icon: vc.icons[n] ?? null });
+    const ab = () => { btn("a", R - r, B - r, r); btn("b", R - r * 3.2, B - r * 1.7, r * 0.85); };
+    if (vc.layout === "dpad+ab") {
+      const rr = r * 0.8, d = r * 1.45, cx = L + d + rr, cy = B - d - rr;
+      btn("left", cx - d, cy, rr); btn("right", cx + d, cy, rr); btn("up", cx, cy - d, rr); btn("down", cx, cy + d, rr); ab();
+    } else if (vc.layout === "joystick+ab") {
+      const sr = r * 1.6; vc.stick = { n: "stick", cx: L + sr, cy: B - sr, rx: L + sr, ry: B - sr, r: sr, dx: 0, dy: 0, id: null }; ab();
+    } else if (vc.layout === "lr+a") {
+      btn("left", L + r, B - r, r); btn("right", L + r * 3.4, B - r, r); btn("a", R - r * 1.1, B - r * 1.1, r * 1.1);
+    }
+  }
+  const sceneAllowsControls = () => !(current && current.controls === false);
+  const controlsShown = () => vc.visible && vc.layout !== "tap" && vc.layout !== "none" && sceneAllowsControls();
+  const zonesLive = () => vc.zones.length > 0 && (GK.isTouch || vc.touched) && sceneAllowsControls();
+  const spaceW = () => (vc.space === "css" ? viewW : GK.width);
+  function zoneCss(z) {
+    const vr = GK.viewRect(), f = z.rect === "left-half" ? [0, 0, 0.5, 1] : z.rect === "right-half" ? [0.5, 0, 0.5, 1] : z.rect;
+    return { x: vr.x + f[0] * vr.w, y: vr.y + f[1] * vr.h, w: f[2] * vr.w, h: f[3] * vr.h };
+  }
+  // Every touch control the player can see right now, in CSS px — what the phone gate taps (§3.1, §4.1).
+  GK.controlRects = () => {
+    const out = [];
+    if (controlsShown()) {
+      const css = vc.space === "css" ? (x, y, w, h) => ({ x, y, w, h }) : (x, y, w, h) => ({ x: offX + x * scale, y: offY + y * scale, w: w * scale, h: h * scale });
+      for (const b of vc.buttons) out.push({ name: b.n, kind: "button", ...css(b.x - b.r, b.y - b.r, b.r * 2, b.r * 2) });
+      if (vc.stick) { const s = vc.stick; out.push({ name: "stick", kind: "stick", ...css(s.cx - s.r, s.cy - s.r, s.r * 2, s.r * 2) }); }
+    }
+    if (zonesLive()) for (const z of vc.zones) out.push({ name: z.n, kind: "zone", ...zoneCss(z) });
+    return out;
+  };
+  function controlAt(x, y) { // generous hit zones (1.6× radius in kit 1, 1.35× in kit 2) so thumbs land
+    const k = vc.space === "css" ? 1.35 : 1.6;
+    for (const b of vc.buttons) if (Math.hypot(x - b.x, y - b.y) < b.r * k) return b;
+    return null;
+  }
+  function zoneAt(cx, cy) { if (!zonesLive()) return null; for (const z of vc.zones) { const r = zoneCss(z); if (cx >= r.x && cx < r.x + r.w && cy >= r.y && cy < r.y + r.h) return z; } return null; }
+  const press = (n) => { vc.active[n] = (vc.active[n] || 0) + 1; GK.key._down(n); GK.p1._down(n); };
+  const touchOwner = new Map(); // touch id → control button name | 'stick' | 'zone:<n>' | 'game'
+  function pointerDown(id, clientX, clientY, isTouch) {
+    unlockAudio();
+    const p = GK.toGame(clientX, clientY), q = vc.space === "css" ? { x: clientX, y: clientY } : p;
+    if (isTouch) vc.touched = true;
+    if (isTouch && vc.layout !== "none") vc.visible = true;
+    if (controlsShown()) {
+      const b = controlAt(q.x, q.y);
+      if (b) { touchOwner.set(id, b.n); press(b.n); count(b.n); return; }
+      if (vc.stick && q.x < spaceW() / 2) {
+        const s = vc.stick; touchOwner.set(id, "stick"); s.id = id; s.counted = false;
+        if (vc.floating && vc.space === "css") { s.cx = GK.clamp(q.x, GK.safeCss.left + s.r, viewW / 2 - s.r); s.cy = GK.clamp(q.y, s.r, viewH - GK.safeCss.bottom - s.r); }
+        stickMove(q); return;
+      }
+    }
+    const z = zoneAt(clientX, clientY);
+    if (z) { touchOwner.set(id, "zone:" + z.n); press(z.n); count(z.n); return; }
+    touchOwner.set(id, "game"); count("tap");
+    GK.pointer.x = p.x; GK.pointer.y = p.y; GK.pointer.down = true; GK.pointer.justDown = true;
+    touchQueue.push({ x: p.x, y: p.y, id });
+    GK.touches.push({ id, x: p.x, y: p.y });
+  }
+  function pointerMove(id, clientX, clientY) {
+    const p = GK.toGame(clientX, clientY), q = vc.space === "css" ? { x: clientX, y: clientY } : p, owner = touchOwner.get(id);
+    if (owner === "stick") { stickMove(q); return; }
+    if (owner === "game" || owner === undefined) {
+      GK.pointer.x = p.x; GK.pointer.y = p.y;
+      const t = GK.touches.find((t) => t.id === id); if (t) { t.x = p.x; t.y = p.y; }
+    } else if (owner && !owner.startsWith("zone:")) { // sliding thumb from one d-pad button to another
+      const b = controlAt(q.x, q.y);
+      if (!b || b.n !== owner) { releaseControl(owner); touchOwner.set(id, b ? b.n : "dead"); if (b) press(b.n); }
+    }
+  }
+  function releaseControl(n) { vc.active[n] = Math.max(0, (vc.active[n] || 0) - 1); if (!vc.active[n]) { GK.key._up(n); GK.p1._up(n); } }
+  function pointerUp(id) {
+    const owner = touchOwner.get(id); touchOwner.delete(id);
+    if (owner === "stick") { stickRelease(); return; }
+    if (owner === "game" || owner === undefined) {
+      GK.pointer.down = GK.touches.length > 1; GK.pointer.justUp = true;
+      GK.touches = GK.touches.filter((t) => t.id !== id);
+    } else if (owner.startsWith("zone:")) releaseControl(owner.slice(5));
+    else if (owner !== "dead") releaseControl(owner);
+  }
+  function stickMove(p) {
+    const s = vc.stick; let dx = p.x - s.cx, dy = p.y - s.cy; const d = Math.hypot(dx, dy) || 1;
+    if (d > s.r) { dx = (dx / d) * s.r; dy = (dy / d) * s.r; }
+    s.dx = dx / s.r; s.dy = dy / s.r;
+    if (!s.counted && Math.hypot(s.dx, s.dy) > 0.3) { s.counted = true; count("stick"); } // once per drag
+    const set = (n, on) => { if (on) { GK.key._down(n); GK.p1._down(n); } else { GK.key._up(n); GK.p1._up(n); } };
+    set("left", s.dx < -0.35); set("right", s.dx > 0.35); set("up", s.dy < -0.35); set("down", s.dy > 0.35);
+  }
+  function stickRelease() { const s = vc.stick; s.dx = s.dy = 0; s.id = null; if (s.rx !== undefined) { s.cx = s.rx; s.cy = s.ry; } for (const n of ["left", "right", "up", "down"]) { GK.key._up(n); GK.p1._up(n); } }
+  // the joystick wins while a thumb is on it; otherwise keyboard/gamepad (a laptop has the joystick layout too). y is DOWN.
+  GK.stick = () => (vc.stick && vc.stick.id !== null ? { x: vc.stick.dx, y: vc.stick.dy } : { x: GK.key.axisX(), y: GK.key.axisY() });
+
+  function drawControls() {
+    if (!controlsShown()) return;
+    if (vc.space === "css") {
+      const m = mainCtx; m.save(); m.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const skin = (b, on) => { m.save(); m.globalAlpha = on ? Math.min(1, vc.opacity + 0.35) : vc.opacity; try { vc.skin(m, b, on); } catch (e) { fail(e); } m.restore(); };
+      for (const b of vc.buttons) skin(b, vc.active[b.n] > 0);
+      if (vc.stick) { const s = vc.stick; skin({ n: "stick", kind: "stick", x: s.cx, y: s.cy, r: s.r, dx: s.dx, dy: s.dy, kx: s.cx + s.dx * s.r, ky: s.cy + s.dy * s.r, kr: s.r * 0.45, label: "", icon: null }, s.id !== null); }
+      m.restore(); return;
+    }
+    const sk = vc.skin || "glass"; if (sk === "none") return;
+    ctx.save(); ctx.globalAlpha = vc.opacity; ctx.lineWidth = 3; ctx.font = "bold 28px system-ui, sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    for (const b of vc.buttons) {
+      const on = vc.active[b.n] > 0;
+      ctx.beginPath();
+      if (sk === "pixel") ctx.rect(b.x - b.r, b.y - b.r, b.r * 2, b.r * 2); else ctx.arc(b.x, b.y, b.r, 0, Math.PI * 2);
+      if (sk === "outline") { ctx.strokeStyle = "#fff"; ctx.lineWidth = on ? 6 : 3; ctx.stroke(); ctx.fillStyle = "#fff"; }
+      else { ctx.fillStyle = on ? "rgba(255,255,255,0.7)" : "rgba(0,0,0,0.35)"; ctx.fill(); ctx.strokeStyle = "#fff"; ctx.stroke(); ctx.fillStyle = on ? "#000" : "#fff"; }
+      ctx.fillText(b.label, b.x, b.y + 1);
+    }
+    if (vc.stick) {
+      const s = vc.stick; ctx.beginPath(); ctx.arc(s.cx, s.cy, s.r, 0, Math.PI * 2); ctx.fillStyle = "rgba(0,0,0,0.3)"; ctx.fill(); ctx.strokeStyle = "#fff"; ctx.stroke();
+      ctx.beginPath(); ctx.arc(s.cx + s.dx * s.r, s.cy + s.dy * s.r, 26, 0, Math.PI * 2); ctx.fillStyle = "rgba(255,255,255,0.8)"; ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // ───────────────────────────── drawing helpers (world space unless noted) ─────────────────────────────
+  GK.rect = (x, y, w, h, color = "#fff", radius = 0) => {
+    ctx.fillStyle = color;
+    if (radius) { ctx.beginPath(); ctx.roundRect(x, y, w, h, radius); ctx.fill(); } else ctx.fillRect(x, y, w, h);
+  };
+  GK.strokeRect = (x, y, w, h, color = "#fff", width = 2) => { ctx.strokeStyle = color; ctx.lineWidth = width; ctx.strokeRect(x, y, w, h); };
+  GK.circle = (x, y, r, color = "#fff") => { ctx.fillStyle = color; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill(); };
+  GK.line = (x1, y1, x2, y2, color = "#fff", width = 2) => { ctx.strokeStyle = color; ctx.lineWidth = width; ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke(); };
+
+  // fonts: system stacks (no file) + GK.fonts.pixel, a 5×7 bitmap face. GK.loadFont adds a vendored woff2 face.
+  GK.fonts = { chunky: "'Avenir Next Condensed','Futura','Arial Black',system-ui", rounded: "'Arial Rounded MT Bold','Avenir Next',system-ui",
+               hand: "'Chalkboard SE','Marker Felt','Comic Sans MS',cursive", story: "'Baskerville','Georgia',serif",
+               type: "'American Typewriter','Courier New',monospace", fancy: "'Copperplate','Didot',serif" };
+  const LEGACY_FONT = "system-ui, -apple-system, 'Segoe UI', sans-serif";
+  const GLYPHS = new Map(); const GLYPH_SRC = "AehhvhhhBuhhuhhuCehgggheDsihhhisEvgguggvFvggugggGehgnhhfHhhhvhhhIe44444eJ72222icKhikokihLggggggvMhrllhhhNhhpljhhOehhhhhePuhhugggQehhhlidRuhhukihSfgge11uTv444444UhhhhhheVhhhhha4WhhhlllaXhha4ahhYhha4444Zv1248gv0ehjlphe14c4444e2eh1248v3v2421he426aiv225vgu11he668guhhe7v1248888ehhehhe9ehhf12c 0000000.00000cc,0000c48!4444404?eh12404:0cc0cc0;0cc0c48'4480000\"aa00000-000v000+044v440=00v0v00/01248g0(2488842)8422248%op248j3*04lel40#aavavaa<248g842>8421248_000000v&cik8lid@ehnlmgf$4fke5u4×00ha4ah♥0avve40★44veeah←048v840→042v240↑4el4440↓0444le4▶8cefec8◀26eue62▲044eev0▼0vee440";
+  for (let i = 0; i < GLYPH_SRC.length; i += 8) GLYPHS.set(GLYPH_SRC[i], [...GLYPH_SRC.slice(i + 1, i + 8)].map((c) => parseInt(c, 32)));
+  const PIXEL_FONT = Object.freeze({ bitmap: true, w: 5, h: 7, toString: () => "monospace" });
+  GK.bitmapFont = () => PIXEL_FONT;
+  GK.fonts.pixel = PIXEL_FONT;
+  // Load a vendored face (catalog/fonts.json) before GK.start: canvas text never waits for fonts. Resolves to a font stack.
+  GK.loadFont = async (family, url, o = {}) => {
+    const stack = `'${family}', ${o.fallback || GK.fonts.chunky}`, weight = String(o.weight ?? 900);
+    try { const face = new FontFace(family, `url("${url}") format("woff2")`, { weight, display: "block" }); await face.load(); document.fonts.add(face);
+      await document.fonts.load(`${weight} 48px '${family}'`); }
+    catch (e) { console.warn(`[gk] font '${family}' did not load from ${url}: ${e && e.message}`); }
+    GK.fonts[o.id || family] = stack; return stack;
+  };
+  const glyphOf = (ch) => GLYPHS.get(ch) || GLYPHS.get(ch.toUpperCase()) || GLYPHS.get("?");
+  const glyphCache = new Map();
+  function glyphCanvas(ch, color) {
+    const key = ch + "\u0000" + color; let c = glyphCache.get(key); if (c) return c;
+    c = document.createElement("canvas"); c.width = 5; c.height = 7; const g = c.getContext("2d"); g.fillStyle = color;
+    glyphOf(ch).forEach((row, j) => { for (let i = 0; i < 5; i++) if (row & (16 >> i)) g.fillRect(i, j, 1, 1); });
+    if (glyphCache.size > 2000) glyphCache.clear(); glyphCache.set(key, c); return c;
+  }
+
+  // GK.text: kit 1 defaults are the legacy look. kit 2 defaults come from theme.font and theme.text.
+  // Extras: shadow {x,y,blur,color} · gradient [[t,color],…] or a CanvasGradient · wave amp|{amp,freq,speed} · letterSpacing px.
+  GK.text = (str, x, y, o = {}) => {
+    str = String(str);
+    const th = K2 ? theme.text || {} : {}, size = o.size || 24;
+    const font = o.font || (K2 ? theme.font.ui : LEGACY_FONT);
+    const stroke = o.stroke !== undefined ? o.stroke : th.stroke;
+    const sw = o.strokeWidth || (K2 ? size * (th.strokeRatio ?? 0.16) : Math.max(2, size / 8));
+    const shadow = o.shadow !== undefined ? o.shadow : th.shadow || null;
+    const align = o.align || "center", baseline = o.baseline || "middle";
+    if (font && font.bitmap) return bitmapText(str, x, y, o, size, stroke, shadow, align, baseline);
+    ctx.font = `${o.weight || (K2 ? theme.font.weight ?? 900 : "bold")} ${size}px ${font}`; ctx.textAlign = align; ctx.textBaseline = baseline;
+    if (!shadow && !o.gradient && !o.wave && !o.letterSpacing) { // the legacy fast path
+      if (stroke) { ctx.lineWidth = sw; ctx.strokeStyle = stroke; ctx.lineJoin = "round"; ctx.strokeText(str, x, y); }
+      ctx.fillStyle = o.color || (K2 ? theme.palette.ink : "#fff"); ctx.fillText(str, x, y); return ctx.measureText(str).width;
+    }
+    const chars = [...str], sp = o.letterSpacing || 0, widths = chars.map((c) => ctx.measureText(c).width);
+    const total = widths.reduce((a, b) => a + b, 0) + sp * Math.max(0, chars.length - 1);
+    const wv = typeof o.wave === "number" ? { amp: o.wave } : o.wave || null, t = GK.stats.time;
+    let fill = o.color || (K2 ? theme.palette.ink : "#fff");
+    if (o.gradient) fill = Array.isArray(o.gradient) ? GK.grad(0, y - size / 2, 0, y + size / 2, o.gradient) : o.gradient;
+    const x0 = align === "center" ? x - total / 2 : align === "right" || align === "end" ? x - total : x;
+    ctx.textAlign = "left";
+    const each = (dx, dy, fn) => { let cx = x0 + dx; chars.forEach((c, i) => { if (c.trim()) fn(c, cx, y + dy + (wv ? Math.sin(t * (wv.speed ?? 6) + i * (wv.freq ?? 0.6)) * wv.amp : 0)); cx += widths[i] + sp; }); };
+    const run = (dx, dy, color, withStroke) => {   // every stroke first, then every fill, so no letter's outline covers its neighbour
+      if (withStroke && stroke) { ctx.lineWidth = sw; ctx.strokeStyle = stroke; ctx.lineJoin = "round"; each(dx, dy, (c, cx, cy) => ctx.strokeText(c, cx, cy)); }
+      ctx.fillStyle = color; each(dx, dy, (c, cx, cy) => ctx.fillText(c, cx, cy));
+    };
+    if (shadow) { const a = ctx.globalAlpha, b = shadow.blur || 0;
+      if (b > 0) { ctx.globalAlpha = a * 0.25; for (const [ox, oy] of [[-b / 2, 0], [b / 2, 0], [0, -b / 2], [0, b / 2]]) run((shadow.x || 0) + ox, (shadow.y || 0) + oy, shadow.color || "#000", true); ctx.globalAlpha = a; }
+      run(shadow.x || 0, shadow.y ?? 3, shadow.color || "#000", true); }
+    run(0, 0, fill, true);
+    return total;
+  };
+  function bitmapText(str, x, y, o, size, stroke, shadow, align, baseline) {
+    const px = Math.max(1, Math.round(size / 7)), sp = (o.letterSpacing || 0), adv = 6 * px + sp, chars = [...str];
+    const total = chars.length * adv - px - sp, h = 7 * px;
+    const x0 = Math.round(align === "center" ? x - total / 2 : align === "right" || align === "end" ? x - total : x);
+    const y0 = Math.round(baseline === "middle" ? y - h / 2 : baseline === "bottom" || baseline === "alphabetic" ? y - h : y);
+    const wv = typeof o.wave === "number" ? { amp: o.wave } : o.wave || null, t = GK.stats.time;
+    const fill = o.color || (K2 ? theme.palette.ink : "#fff"), smooth = ctx.imageSmoothingEnabled; ctx.imageSmoothingEnabled = false;
+    const run = (dx, dy, color) => chars.forEach((c, i) => {
+      const oy = wv ? Math.round(Math.sin(t * (wv.speed ?? 6) + i * (wv.freq ?? 0.6)) * wv.amp) : 0;
+      if (typeof color === "string") ctx.drawImage(glyphCanvas(c, color), x0 + i * adv + dx, y0 + oy + dy, 5 * px, h);
+      else { ctx.fillStyle = color; glyphOf(c).forEach((row, j) => { for (let k = 0; k < 5; k++) if (row & (16 >> k)) ctx.fillRect(x0 + i * adv + dx + k * px, y0 + oy + dy + j * px, px, px); }); }
+    });
+    if (shadow) run(Math.round(shadow.x ?? px), Math.round(shadow.y ?? px), shadow.color || "#000");
+    if (stroke) for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]]) run(ox * px, oy * px, stroke);
+    run(0, 0, o.gradient ? (Array.isArray(o.gradient) ? GK.grad(0, y0, 0, y0 + h, o.gradient) : o.gradient) : fill);
+    ctx.imageSmoothingEnabled = smooth; return total;
+  }
+  GK.emoji = (ch, x, y, size = 32, o = {}) => { // centered at x,y; flipX / rot supported
+    ctx.save(); ctx.translate(x, y); if (o.rot) ctx.rotate(o.rot); if (o.flipX) ctx.scale(-1, 1);
+    ctx.font = `${size}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(ch, 0, size * 0.05); ctx.restore();
+  };
+  // silhouettes (flash / tint) are cached per image and color
+  const silCache = new WeakMap();
+  function silhouette(img, color) {
+    let m = silCache.get(img); if (!m) { m = new Map(); silCache.set(img, m); }
+    let c = m.get(color); if (c) return c;
+    c = document.createElement("canvas"); c.width = img.width; c.height = img.height; const g = c.getContext("2d");
+    g.drawImage(img, 0, 0); g.globalCompositeOperation = "source-in"; g.fillStyle = color; g.fillRect(0, 0, c.width, c.height); m.set(color, c); return c;
+  }
+  // top-left at x,y; w/h default to the image's logical size. flipX · rot (radians, about center) · sx/sy (squash about the
+  // bottom-center) · alpha · flash (true or 0..1: a white silhouette) · tint (color or {color, alpha}) · smooth
+  GK.img = (image, x, y, w, h, o = {}) => {
+    w = w ?? image.w ?? image.width; h = h ?? image.h ?? image.height;
+    ctx.save();
+    if (o.sx !== undefined || o.sy !== undefined) { ctx.translate(x + w / 2, y + h); ctx.scale(o.sx ?? 1, o.sy ?? 1); ctx.translate(-(x + w / 2), -(y + h)); }
+    ctx.translate(x + w / 2, y + h / 2); if (o.rot) ctx.rotate(o.rot); if (o.flipX) ctx.scale(-1, 1);
+    if (o.alpha !== undefined) ctx.globalAlpha *= o.alpha;
+    ctx.imageSmoothingEnabled = !!o.smooth; ctx.drawImage(image, -w / 2, -h / 2, w, h);
+    if (o.flash) { ctx.globalAlpha *= o.flash === true ? 1 : o.flash; ctx.drawImage(silhouette(image, "#fff"), -w / 2, -h / 2, w, h); }
+    else if (o.tint) { const t = typeof o.tint === "string" ? { color: o.tint, alpha: 0.5 } : o.tint; ctx.globalAlpha *= t.alpha ?? 0.5; ctx.drawImage(silhouette(image, t.color), -w / 2, -h / 2, w, h); }
+    ctx.restore();
+  };
+  GK.bar = (x, y, w, h, frac, color = "#4ade80", bg = "rgba(0,0,0,0.5)") => { GK.rect(x, y, w, h, bg, 4); GK.rect(x, y, w * GK.clamp(frac, 0, 1), h, color, 4); };
+  GK.ctx = () => ctx;
+
+  // pixel art: rows of chars, palette {char: color}, '.' (or space) = transparent → offscreen canvas
+  GK.pixelArt = (rows, palette, px = 1) => {
+    const h = rows.length, w = Math.max(...rows.map((r) => r.length));
+    const c = document.createElement("canvas"); c.width = w * px; c.height = h * px; const g = c.getContext("2d");
+    rows.forEach((row, j) => [...row].forEach((ch, i) => { const col = palette[ch]; if (col && ch !== "." && ch !== " ") { g.fillStyle = col; g.fillRect(i * px, j * px, px, px); } }));
+    c.flipped = () => { const f = document.createElement("canvas"); f.width = c.width; f.height = c.height; const fg = f.getContext("2d"); fg.translate(c.width, 0); fg.scale(-1, 1); fg.drawImage(c, 0, 0); return f; };
+    return c;
+  };
+
+  // ───────────────────────────── sprites ─────────────────────────────
+  // GK.sprite({frames: {idle: [rows], run: [rows1, rows2, rows3]}, palette, px = 4, fps = 10, outline = null, shade = false})
+  // A frame is an array of strings (pixelArt rows). outline = a color for a 1-cell outline; shade = darken the lower edge.
+  GK.sprite = (o) => {
+    if (!o || !o.frames || !o.palette) throw new Error("GK.sprite: frames and palette are required");
+    const px = o.px ?? 4, anims = {};
+    const bake = (rows) => {
+      const pad = o.outline ? 1 : 0, h = rows.length, w = Math.max(...rows.map((r) => r.length));
+      const solid = (i, j) => { const r = rows[j]; const ch = r && r[i]; return !!(ch && ch !== "." && ch !== " " && o.palette[ch]); };
+      const c = document.createElement("canvas"); c.width = (w + pad * 2) * px; c.height = (h + pad * 2) * px; const g = c.getContext("2d");
+      if (o.outline) { g.fillStyle = o.outline; for (let j = -1; j <= h; j++) for (let i = -1; i <= w; i++) if (!solid(i, j) && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([a, b]) => solid(i + a, j + b))) g.fillRect((i + pad) * px, (j + pad) * px, px, px); }
+      for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) if (solid(i, j)) {
+        const col = o.palette[rows[j][i]]; g.fillStyle = o.shade && !solid(i, j + 1) ? GK.shade(col, -0.28) : col; g.fillRect((i + pad) * px, (j + pad) * px, px, px); }
+      c.w = c.width; c.h = c.height; return c;
+    };
+    for (const name in o.frames) { let fr = o.frames[name]; if (typeof fr[0] === "string") fr = [fr]; anims[name] = fr.map(bake); }
+    const first = Object.keys(anims)[0];
+    return { anims, anim: first, frame: 0, t: 0, fps: o.fps ?? 10, w: anims[first][0].w, h: anims[first][0].h,
+      play(name, restart = false) { if (!anims[name]) throw new Error(`sprite: no animation '${name}'`); if (name !== this.anim || restart) { this.anim = name; this.t = 0; this.frame = 0; } return this; },
+      update(dt) { this.t += dt; this.frame = Math.floor(this.t * this.fps) % anims[this.anim].length; return this; },
+      get canvas() { return anims[this.anim][this.frame]; },
+      draw(x, y, w, h, d = {}) { const c = anims[this.anim][this.frame]; GK.img(c, x, y, w ?? c.w, h ?? c.h, d); } };
+  };
+  // an emoji baked once into a canvas (outline / drop shadow) — pickups and HUD, never the hero
+  const emojiCache = new Map();
+  GK.emojiSprite = (ch, size = 32, o = {}) => {
+    const key = [ch, size, o.outline, o.shadow].join("|"); if (emojiCache.has(key)) return emojiCache.get(key);
+    const res = 2, S = Math.ceil(size * 1.3), c = document.createElement("canvas"); c.width = c.height = S * res; const g = c.getContext("2d");
+    const base = document.createElement("canvas"); base.width = base.height = S * res; const bg = base.getContext("2d");
+    bg.font = `${size * res}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`; bg.textAlign = "center"; bg.textBaseline = "middle"; bg.fillText(ch, S * res / 2, S * res / 2 + size * res * 0.05);
+    if (o.shadow) { g.globalAlpha = 0.35; g.drawImage(silhouette(base, o.shadow), 0, Math.max(1, size / 12) * res); g.globalAlpha = 1; }
+    if (o.outline) { const k = Math.max(1, size / 16) * res, s = silhouette(base, o.outline); for (let a = 0; a < 8; a++) g.drawImage(s, Math.cos(a * TAU / 8) * k, Math.sin(a * TAU / 8) * k); }
+    g.drawImage(base, 0, 0); c.w = c.h = S; emojiCache.set(key, c); return c;
+  };
+
+  // ───────────────────────────── painters ─────────────────────────────
+  let scratch = null; const gctx = () => ctx || (scratch = scratch || document.createElement("canvas").getContext("2d"));
+  const addStops = (g, stops) => { stops.forEach((s, i) => (Array.isArray(s) ? g.addColorStop(s[0], s[1]) : g.addColorStop(stops.length > 1 ? i / (stops.length - 1) : 0, s))); return g; };
+  GK.grad = (x0, y0, x1, y1, stops) => addStops(gctx().createLinearGradient(x0, y0, x1, y1), stops);
+  GK.radial = (x, y, r0, r1, stops) => addStops(gctx().createRadialGradient(x, y, r0, x, y, r1), stops);
+  const layerRes = () => (isPixel() ? 1 : Math.min(2, Math.max(1, scale * dpr)));
+  function makeLayer(w, h, paint, res = layerRes()) {
+    const c = document.createElement("canvas"); c.width = Math.max(1, Math.ceil(w * res)); c.height = Math.max(1, Math.ceil(h * res));
+    const g = c.getContext("2d"); g.scale(res, res); if (isPixel() || (theme && theme.pixelated)) g.imageSmoothingEnabled = false;
+    paint(g, w, h); c.w = w; c.h = h; return c;
+  }
+  // an offscreen canvas painted once by paint(g, w, h) and cached per paint function (draw it with GK.img(layer, x, y))
+  const layerCache = new WeakMap();
+  GK.layer = (w, h, paint) => {
+    const hit = layerCache.get(paint), res = layerRes();
+    if (hit && hit.w === w && hit.h === h && hit.res === res) return hit.c;
+    const c = makeLayer(w, h, paint, res); layerCache.set(paint, { w, h, res, c }); return c;
+  };
+  const genCache = new Map();
+  const cachedGen = (kind, o, paint) => { const w = o.w || Math.max(1024, Math.ceil(GK.width / 128) * 128), h = o.h || GK.height, key = kind + JSON.stringify(o) + w + "x" + h + "@" + layerRes();
+    if (!genCache.has(key)) { if (genCache.size > 64) genCache.clear(); genCache.set(key, makeLayer(w, h, (g) => paint(g, w, h))); } return genCache.get(key); };
+  const need = (fn, o, keys) => { for (const k of keys) if (o[k] === undefined) throw new Error(`${fn}: ${k} is required — decide it in the art direction`); };
+
+  // sky, in screen space over the whole view: {top, bottom, stars: n | {count, color}, sun: {x, y, r, color}, moon: {…}, dither: bands}
+  // x/y of sun and moon ≤ 1 are view fractions. dither: n draws n flat bands with 4×4 Bayer dithering (pixel look).
+  const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+  GK.sky = (o = {}) => {
+    need("GK.sky", o, ["top", "bottom"]);
+    withView(() => {
+      const W = GK.width, H = GK.height;
+      const bg = cachedGen("sky", { top: o.top, bottom: o.bottom, dither: o.dither || 0, w: W, h: H }, (g, w, h) => {
+        if (!o.dither) { g.fillStyle = addStops(g.createLinearGradient(0, 0, 0, h), [o.top, o.bottom]); g.fillRect(0, 0, w, h); return; }
+        const n = Math.max(2, o.dither | 0), cols = Array.from({ length: n }, (_, i) => GK.color(GK.mix(o.top, o.bottom, i / (n - 1))));
+        const iw = Math.ceil(w), ih = Math.ceil(h), img = g.createImageData(iw, ih), d = img.data;
+        for (let yy = 0; yy < ih; yy++) { const f = (yy / Math.max(1, ih - 1)) * (n - 1), lo = Math.min(n - 2, Math.floor(f)), fr = f - lo;
+          for (let xx = 0; xx < iw; xx++) { const c = cols[fr * 16 > BAYER[(yy & 3) * 4 + (xx & 3)] + 0.5 ? lo + 1 : lo], p = (yy * iw + xx) * 4; d[p] = c.r; d[p + 1] = c.g; d[p + 2] = c.b; d[p + 3] = 255; } }
+        const t = document.createElement("canvas"); t.width = iw; t.height = ih; t.getContext("2d").putImageData(img, 0, 0); g.imageSmoothingEnabled = false; g.drawImage(t, 0, 0, w, h);
+      });
+      ctx.drawImage(bg, 0, 0, W, H);
+      const P = (v, full) => (v <= 1 ? v * full : v);
+      for (const body of [o.sun, o.moon]) if (body) { const x = P(body.x ?? 0.8, W), y = P(body.y ?? 0.2, H), r = body.r ?? 28;
+        if (body.glow) { ctx.fillStyle = GK.radial(x, y, r * 0.8, r * 3, [[0, GK.alpha(body.glow, 0.5)], [1, GK.alpha(body.glow, 0)]]); ctx.fillRect(x - r * 3, y - r * 3, r * 6, r * 6); }
+        GK.circle(x, y, r, body.color); if (body === o.moon && body.shadow) GK.circle(x + r * 0.45, y - r * 0.2, r * 0.9, body.shadow); }
+      if (o.stars) { const s = typeof o.stars === "number" ? { count: o.stars } : o.stars, n = s.count ?? 60, t = GK.stats.time, sz = s.size ?? Math.max(1, Math.round(W / 400));
+        ctx.fillStyle = s.color || (K2 ? theme.palette.ink : "#fff"); const a0 = ctx.globalAlpha;
+        for (let i = 0; i < n; i++) { const x = hash2(i, 11) * W, y = hash2(i, 23) * H * (s.band ?? 0.7); ctx.globalAlpha = a0 * (0.45 + 0.55 * Math.abs(Math.sin(t * (1 + hash2(i, 5) * 2) + i)));
+          ctx.fillRect(Math.round(x), Math.round(y), sz, sz); }
+        ctx.globalAlpha = a0; }
+    });
+  };
+  // parallax generators: seamless tiles (w defaults to ≥1024), cached by options. {seed, color, amp, y (0..1 of height), color2}
+  GK.hills = (o = {}) => { need("GK.hills", o, ["color"]); return cachedGen("hills", o, (g, w, h) => {
+    const P = Math.max(2, Math.round(w / 180)), y0 = (o.y ?? 0.65) * h, amp = o.amp ?? 40, s = o.seed ?? 1;
+    g.beginPath(); g.moveTo(0, h); for (let x = 0; x <= w; x += 2) g.lineTo(x, y0 - amp * (fbmP((x / w) * P, P, s, 2) * 2 - 0.5)); g.lineTo(w, h); g.closePath();
+    g.fillStyle = o.color; g.fill(); if (o.color2) { g.lineWidth = Math.max(2, amp / 12); g.strokeStyle = o.color2; g.stroke(); } }); };
+  GK.mountains = (o = {}) => { need("GK.mountains", o, ["color"]); return cachedGen("mountains", o, (g, w, h) => {
+    const P = Math.max(2, Math.round(w / 260)), y0 = (o.y ?? 0.55) * h, amp = o.amp ?? 110, s = o.seed ?? 2;
+    const ridge = (x) => { let v = 0, a = 1, f = 1, n = 0; for (let k = 0; k < 4; k++) { v += a * (1 - Math.abs(noiseP((x / w) * P * f, P * f, s + k) * 2 - 1)); n += a; a *= 0.5; f *= 2; } return v / n; };
+    const ys = []; for (let x = 0; x <= w; x += 2) ys.push(y0 - amp * (ridge(x) - 0.35));
+    g.beginPath(); g.moveTo(0, h); ys.forEach((y, i) => g.lineTo(i * 2, y)); g.lineTo(w, h); g.closePath(); g.fillStyle = o.color; g.fill();
+    if (o.snow) { g.save(); g.clip(); g.fillStyle = o.snow; const line = y0 - amp * 0.35; g.beginPath(); g.moveTo(0, 0); ys.forEach((y, i) => g.lineTo(i * 2, Math.min(y + amp * 0.12, line + 6 * Math.sin(i)))); g.lineTo(w, 0); g.closePath(); g.fill(); g.restore(); } }); };
+  GK.city = (o = {}) => { need("GK.city", o, ["color"]); return cachedGen("city", o, (g, w, h) => {
+    const y0 = (o.y ?? 0.7) * h, amp = o.amp ?? 120, s = o.seed ?? 3; let x = 0, i = 0;
+    while (x < w) { let bw = 30 + Math.floor(hash2(i, s) * 50); if (w - x - bw < 30) bw = w - x; const bh = amp * (0.35 + hash2(i, s + 1) * 0.65);
+      g.fillStyle = o.color; g.fillRect(x, y0 - bh, bw - 2, h - y0 + bh);
+      if (o.color2) { g.fillStyle = o.color2; for (let wy = y0 - bh + 8; wy < h - 6; wy += 12) for (let wx = x + 6; wx < x + bw - 10; wx += 10) if (hash2(wx, wy + s) > 0.55) g.fillRect(wx, wy, 4, 5); }
+      x += bw; i++; } }); };
+  GK.clouds = (o = {}) => { need("GK.clouds", o, ["color"]); return cachedGen("clouds", o, (g, w, h) => {
+    const n = Math.max(2, Math.round(w / 220)), y0 = (o.y ?? 0.2) * h, amp = o.amp ?? 40, s = o.seed ?? 4; g.fillStyle = o.color;
+    for (let i = 0; i < n; i++) { const cx = (i + hash2(i, s) * 0.6) * (w / n), cy = y0 + (hash2(i, s + 1) - 0.5) * amp * 2, sz = 18 + hash2(i, s + 2) * 22;
+      for (let k = 0; k < 5; k++) { const px = cx + (k - 2) * sz * 0.8, py = cy - Math.sin((k / 4) * Math.PI) * sz * 0.6, r = sz * (0.7 + 0.3 * Math.sin((k / 4) * Math.PI));
+        for (const off of [-w, 0, w]) { g.beginPath(); g.arc(px + off, py, r, 0, TAU); g.fill(); } } } }); };
+  GK.waves = (o = {}) => { need("GK.waves", o, ["color"]); return cachedGen("waves", o, (g, w, h) => {
+    const y0 = (o.y ?? 0.75) * h, amp = o.amp ?? 8, k = Math.max(1, Math.round(w / (o.length ?? 128)));
+    g.beginPath(); g.moveTo(0, h); for (let x = 0; x <= w; x += 2) g.lineTo(x, y0 + Math.sin((x / w) * k * TAU) * amp); g.lineTo(w, h); g.closePath();
+    g.fillStyle = o.color; g.fill(); if (o.color2) { g.lineWidth = Math.max(2, amp / 3); g.strokeStyle = o.color2; g.stroke(); } }); };
+  // GK.parallax([{canvas, factor, y, yFactor, speed}, {draw(ctx, off), factor, repeat}]) — draws in screen space, back to front.
+  // off = cam.x × factor (+ speed × simulation seconds, for drifting clouds).
+  GK.parallax = (layers) => withView(() => {
+    for (const L of layers) {
+      const off = GK.cam.x * (L.factor ?? 0.5) + (L.speed ? GK.stats.time * L.speed : 0), yo = (L.y ?? 0) - GK.cam.y * (L.yFactor ?? 0);
+      if (L.canvas) { const w = L.canvas.w || L.canvas.width, h = L.canvas.h || L.canvas.height; for (let x = -mod(off, w); x < GK.width; x += w) ctx.drawImage(L.canvas, Math.round(x), Math.round(yo), w, h); }
+      else if (L.draw) {
+        if (L.repeat) { for (let x = -mod(off, L.repeat); x < GK.width; x += L.repeat) { ctx.save(); ctx.translate(x, yo); L.draw(ctx, off); ctx.restore(); } }
+        else { ctx.save(); ctx.translate(0, yo); L.draw(ctx, off); ctx.restore(); }
+      }
+    }
+  });
+  // run fn in screen space (the view transform, no camera) and come back
+  function withView(fn) { ctx.save(); ctx.setTransform(baseT[0], baseT[1], baseT[2], baseT[3], baseT[4], baseT[5]); try { fn(); } finally { ctx.restore(); } }
+  GK.screenSpace = withView;
+
+  // ───────────────────────────── ASCII levels, tilemaps & platformer physics ─────────────────────────────
+  // rows: ["####", "#..#"], size: tile px. '#' = solid. Every other non-'.'/' ' char → spawns[{ch,x,y,col,row}].
+  GK.level = (rows, size = 40, solidChars = "#") => {
+    const solids = [], spawns = [], tiles = rows.map((r) => [...r]);
+    rows.forEach((row, j) => [...row].forEach((ch, i) => {
+      if (solidChars.includes(ch)) solids.push({ x: i * size, y: j * size, w: size, h: size, ch });
+      else if (ch !== "." && ch !== " ") spawns.push({ ch, x: i * size, y: j * size, col: i, row: j });
+    }));
+    return { rows, tiles, size, solids, spawns, w: Math.max(...rows.map((r) => r.length)) * size, h: rows.length * size,
+             at: (x, y) => { const r = tiles[Math.floor(y / size)]; return r ? r[Math.floor(x / size)] : undefined; } };
+  };
+  // GK.tilemap(rows, {tile = 16, solid = "#", oneWay = "-", paint: {"#": GK.tiles.grassDirt({...})}, autotile: "4bit"})
+  // Solid runs merge into few rects; `-` rows become one-way platforms (land from above, down+jump drops through).
+  // Painted chars that are neither solid nor one-way are decor; other chars are spawns. Prerendered in 1024 px chunks.
+  GK.tilemap = (rows, o = {}) => {
+    const size = o.tile ?? 16, solidCh = o.solid ?? "#", oneCh = o.oneWay ?? "-", paint = o.paint || {}, CH = 1024;
+    const tiles = rows.map((r) => [...r]), nr = tiles.length, nc = Math.max(...tiles.map((r) => r.length));
+    const isSolid = (ch) => !!ch && solidCh.includes(ch), isOne = (ch) => !!ch && oneCh.includes(ch);
+    const tileAt = (c, r) => (tiles[r] ? tiles[r][c] : undefined);
+    const solids = [], spawns = [], chunks = new Map(); let res = 0;
+    function rebuild() {
+      solids.length = 0;
+      for (let r = 0; r < nr; r++) { let c = 0;
+        while (c < nc) { const ch = tileAt(c, r), kind = isSolid(ch) ? 1 : isOne(ch) ? 2 : 0; if (!kind) { c++; continue; }
+          let e = c + 1; while (e < nc && (kind === 1 ? isSolid(tileAt(e, r)) : isOne(tileAt(e, r)))) e++;
+          solids.push({ x: c * size, y: r * size, w: (e - c) * size, h: size, ch, oneWay: kind === 2 }); c = e; } }
+    }
+    rebuild();
+    tiles.forEach((row, r) => row.forEach((ch, c) => { if (ch !== "." && ch !== " " && !isSolid(ch) && !isOne(ch) && !paint[ch]) spawns.push({ ch, x: c * size, y: r * size, col: c, row: r }); }));
+    const same = (a, b) => (isSolid(a) && isSolid(b)) || (isOne(a) && isOne(b)) || a === b;
+    const mask = (c, r) => { const ch = tileAt(c, r), n = (cc, rr, oob) => { const t = tileAt(cc, rr); return t === undefined ? oob : same(ch, t); };
+      return (n(c, r - 1, false) ? 1 : 0) | (n(c + 1, r, true) ? 2 : 0) | (n(c, r + 1, true) ? 4 : 0) | (n(c - 1, r, true) ? 8 : 0); };
+    function renderChunk(ix, iy) {
+      const x0 = ix * CH, y0 = iy * CH, w = Math.min(CH, nc * size - x0), h = Math.min(CH, nr * size - y0);
+      return makeLayer(w, h, (g) => {
+        g.translate(-x0, -y0);
+        for (let r = Math.floor(y0 / size); r < Math.ceil((y0 + h) / size); r++) for (let c = Math.floor(x0 / size); c < Math.ceil((x0 + w) / size); c++) {
+          const ch = tileAt(c, r), p = ch && paint[ch]; if (!p) continue;
+          g.save(); try { p(g, c * size, r * size, size, o.autotile === "4bit" ? mask(c, r) : 15, { c, r, ch, n: hash2(c, r) }); } finally { g.restore(); } }
+      }, res);
+    }
+    const map = { rows, tiles, size, solids, spawns, cols: nc, w: nc * size, h: nr * size, oneWay: solids.filter((s) => s.oneWay),
+      tileAt, at: (x, y) => tileAt(Math.floor(x / size), Math.floor(y / size)),
+      set(c, r, ch) { if (!tiles[r]) return; tiles[r][c] = ch; rebuild(); map.oneWay = solids.filter((s) => s.oneWay);
+        for (const [k] of chunks) { const [ix, iy] = k.split(",").map(Number); if (Math.abs(ix * CH - c * size) <= CH + size && Math.abs(iy * CH - r * size) <= CH + size) chunks.delete(k); } },
+      draw() {
+        const lr = layerRes(); if (lr !== res) { res = lr; chunks.clear(); }
+        const z = GK.cam.zoom || 1, vw = GK.width / z, vh = GK.height / z, pad = GK.cam.rot ? Math.max(vw, vh) : 0;
+        const x0 = GK.cam.x + GK.width / 2 - vw / 2 - pad, y0 = GK.cam.y + GK.height / 2 - vh / 2 - pad;
+        for (let iy = Math.max(0, Math.floor(y0 / CH)); iy * CH < Math.min(map.h, y0 + vh + pad * 2); iy++)
+          for (let ix = Math.max(0, Math.floor(x0 / CH)); ix * CH < Math.min(map.w, x0 + vw + pad * 2); ix++) {
+            const k = ix + "," + iy; let cv = chunks.get(k); if (!cv) { cv = renderChunk(ix, iy); chunks.set(k, cv); }
+            ctx.drawImage(cv, ix * CH, iy * CH, cv.w, cv.h); }
+      } };
+    return map;
+  };
+  // tile painters (g, x, y, size, mask, info): mask bits N=1 E=2 S=4 W=8 are same-kind neighbours. Colors are required.
+  const tp = (name, keys, fn) => (pal = {}) => { need(`GK.tiles.${name}`, pal, keys); return (g, x, y, s, m, info) => fn(g, x, y, s, m, info, pal, Math.max(1, Math.round(s / 16))); };
+  const edges = (g, x, y, s, m, p, col, skipTop) => { g.fillStyle = col; if (!(m & 8)) g.fillRect(x, y, p, s); if (!(m & 2)) g.fillRect(x + s - p, y, p, s); if (!(m & 4)) g.fillRect(x, y + s - p, s, p); if (!skipTop && !(m & 1)) g.fillRect(x, y, s, p); };
+  GK.tiles = {
+    grassDirt: tp("grassDirt", ["top", "dirt", "edge"], (g, x, y, s, m, info, c, p) => {
+      g.fillStyle = c.dirt; g.fillRect(x, y, s, s); g.fillStyle = c.edge;
+      for (let k = 0; k < 4; k++) g.fillRect(x + Math.floor(hash2(info.c * 7 + k, info.r) * (s / p - 1)) * p, y + Math.floor(hash2(info.c, info.r * 5 + k) * (s / p - 1)) * p, p, p);
+      edges(g, x, y, s, m, p, c.edge, true);
+      if (!(m & 1)) { const band = 3 * p; g.fillStyle = c.top; g.fillRect(x, y, s, band); g.fillStyle = c.edge; g.fillRect(x, y + band, s, p);
+        g.fillStyle = c.top; for (let k = 0; k < s / p; k += 2) if (hash2(info.c * 31 + k, info.r) > 0.5) g.fillRect(x + k * p, y + band, p, p); }
+    }),
+    stone: tp("stone", ["base", "hi", "lo"], (g, x, y, s, m, info, c, p) => {
+      g.fillStyle = c.base; g.fillRect(x, y, s, s); g.fillStyle = c.lo; const h2 = s / 2, off = info.r % 2 ? s / 3 : 0;
+      g.fillRect(x, y + h2 - p / 2, s, p); g.fillRect(x + ((off + s * 0.6) % s), y, p, h2); g.fillRect(x + ((off + s * 0.25) % s), y + h2, p, h2);
+      g.fillStyle = c.hi; g.fillRect(x + p, y + p, s * 0.3, p); g.fillRect(x + p, y + h2 + p, s * 0.2, p); edges(g, x, y, s, m, p, c.lo);
+    }),
+    brick: tp("brick", ["base", "hi", "lo"], (g, x, y, s, m, info, c, p) => {
+      g.fillStyle = c.lo; g.fillRect(x, y, s, s); const rh = s / 4;
+      for (let i = 0; i < 4; i++) { const o = (i + info.r * 4) % 2 ? s / 2 : 0;
+        for (let bx = -o; bx < s; bx += s / 2) { const x0 = Math.max(0, bx), x1 = Math.min(s, bx + s / 2 - p); if (x1 <= x0) continue;
+          g.fillStyle = c.base; g.fillRect(x + x0, y + i * rh, x1 - x0, rh - p); g.fillStyle = c.hi; g.fillRect(x + x0, y + i * rh, x1 - x0, p); } }
+    }),
+    ice: tp("ice", ["base", "hi", "lo"], (g, x, y, s, m, info, c, p) => {
+      g.fillStyle = c.base; g.fillRect(x, y, s, s); g.fillStyle = c.hi;
+      for (let k = 0; k < s; k += p) { const d = (k + info.c * s * 0.37) % s; if (d < s * 0.3) g.fillRect(x + k, y + ((k * 0.7 + info.r * 5) % s), p, p * 2); }
+      edges(g, x, y, s, m, p, c.lo, true); if (!(m & 1)) { g.fillStyle = c.hi; g.fillRect(x, y, s, p * 2); }
+    }),
+    sand: tp("sand", ["base", "hi", "lo"], (g, x, y, s, m, info, c, p) => {
+      g.fillStyle = c.base; g.fillRect(x, y, s, s);
+      for (let k = 0; k < 6; k++) { g.fillStyle = k % 2 ? c.hi : c.lo; g.fillRect(x + Math.floor(hash2(info.c * 13 + k, info.r) * s / p) * p, y + Math.floor(hash2(info.c, info.r * 11 + k) * s / p) * p, p, p); }
+      if (!(m & 1)) { g.fillStyle = c.hi; for (let k = 0; k < s; k += p) g.fillRect(x + k, y + (Math.sin((x + k) * 0.35) > 0 ? 0 : p), p, p); }
+    }),
+    metal: tp("metal", ["base", "hi", "lo"], (g, x, y, s, m, info, c, p) => {
+      g.fillStyle = c.base; g.fillRect(x, y, s, s); g.fillStyle = c.hi; g.fillRect(x, y, s, p); g.fillRect(x, y, p, s);
+      g.fillStyle = c.lo; g.fillRect(x, y + s - p, s, p); g.fillRect(x + s - p, y, p, s);
+      for (const [a, b] of [[2, 2], [s / p - 3, 2], [2, s / p - 3], [s / p - 3, s / p - 3]]) { g.fillStyle = c.lo; g.fillRect(x + a * p, y + b * p, p, p); g.fillStyle = c.hi; g.fillRect(x + a * p - p, y + b * p - p, p, p); }
+    }),
+    candy: tp("candy", ["base", "hi", "lo"], (g, x, y, s, m, info, c, p) => {
+      g.fillStyle = c.base; g.fillRect(x, y, s, s); g.save(); g.beginPath(); g.rect(x, y, s, s); g.clip(); g.fillStyle = c.hi;
+      for (let k = -s; k < s; k += s / 2) { g.beginPath(); g.moveTo(x + k, y + s); g.lineTo(x + k + s / 4, y + s); g.lineTo(x + k + s / 4 + s, y); g.lineTo(x + k + s, y); g.closePath(); g.fill(); }
+      g.restore(); edges(g, x, y, s, m, p, c.lo, true); if (!(m & 1)) { g.fillStyle = "rgba(255,255,255,0.35)"; g.fillRect(x + p, y + p, s - 2 * p, p); }
+    }),
+  };
+  // Move entity {x,y,w,h,vx,vy} through solid rects; sets e.onGround / e.hitWall / e.hitCeiling (and e.groundRef).
+  // Rects with oneWay:true only stop a body falling onto them from above, and never while e.dropThrough is set.
+  GK.moveSolid = (e, solids, dt) => {
+    e.onGround = false; e.hitWall = false; e.hitCeiling = false;
+    e.x += e.vx * dt;
+    for (const s of solids) if (!s.oneWay && GK.hit(e, s)) { if (e.vx > 0) e.x = s.x - e.w; else if (e.vx < 0) e.x = s.x + s.w; e.vx = 0; e.hitWall = true; }
+    const prevBottom = e.y + e.h; e.y += e.vy * dt;
+    for (const s of solids) if (GK.hit(e, s)) {
+      if (s.oneWay) { if (e.vy >= 0 && prevBottom <= s.y + 0.01 && !e.dropThrough) { e.y = s.y - e.h; e.onGround = true; e.groundRef = s; e.vy = 0; } continue; }
+      if (e.vy > 0) { e.y = s.y - e.h; e.onGround = true; e.groundRef = s; } else if (e.vy < 0) { e.y = s.y + s.h; e.hitCeiling = true; }
+      e.vy = 0;
+    }
+  };
+  // A jump that feels right: coyote time, jump buffer, variable height, heavier fall, air jumps, one-way drop-through.
+  // GK.platformer(p, {speed, accel, decel, jump, gravity, coyote, buffer, variableJump, maxJumps, fallMul, maxFall,
+  //   solids | level, input = GK.key, jumpKey = "a", onJump(p), onLand(p)}) → {step(dt, solids?) → jumped}
+  GK.platformer = (p, o = {}) => {
+    const c = Object.assign({ speed: 220, accel: 1800, decel: null, jump: 520, gravity: 1400, coyote: 0.1, buffer: 0.12, variableJump: true,
+                              maxJumps: 1, fallMul: 1.6, maxFall: 900, jumpKey: "a" }, o);
+    const st = { coyote: 0, buffer: 0, jumps: 0, rising: false };
+    p.vx = p.vx || 0; p.vy = p.vy || 0;
+    return { cfg: c, state: st,
+      step(dt, solids = c.solids || (c.level && c.level.solids) || []) {
+        const inp = c.input || GK.key, ax = c.axis ? c.axis() : inp.axisX(), target = ax * c.speed;
+        p.vx = GK.approach(p.vx, target, (ax !== 0 && (p.vx === 0 || Math.sign(ax) === Math.sign(p.vx)) ? c.accel : c.decel ?? c.accel * 1.5) * dt);
+        if (p.onGround) { st.coyote = c.coyote; st.jumps = 0; } else st.coyote -= dt;
+        if (inp.pressed(c.jumpKey)) st.buffer = c.buffer; else st.buffer -= dt;
+        let jumped = false; const jump = () => { p.vy = -c.jump; st.buffer = 0; st.coyote = 0; st.rising = true; jumped = true; if (c.onJump) c.onJump(p); };
+        if (st.buffer > 0) {
+          if (p.onGround && inp.held("down") && p.groundRef && p.groundRef.oneWay) { p.dropThrough = 0.25; st.buffer = 0; }
+          else if (st.coyote > 0) { jump(); st.jumps = 1; }
+          else { if (st.jumps === 0) st.jumps = 1; if (st.jumps < c.maxJumps) { jump(); st.jumps++; } }
+        }
+        if (c.variableJump && st.rising && p.vy < 0 && !inp.held(c.jumpKey)) { p.vy *= 0.5; st.rising = false; }
+        if (p.vy >= 0) st.rising = false;
+        p.vy = Math.min(p.vy + c.gravity * (p.vy > 0 ? c.fallMul : 1) * dt, c.maxFall);
+        if (p.dropThrough) p.dropThrough = Math.max(0, p.dropThrough - dt);
+        const was = p.onGround; GK.moveSolid(p, solids, dt);
+        if (p.onGround && !was && c.onLand) c.onLand(p);
+        return jumped;
+      } };
+  };
+
+  // ───────────────────────────── camera ─────────────────────────────
+  // GK.cam = {x, y, zoom, rot}. follow: legacy {level, lerp, lockY} plus {deadzone: px | {w, h}, lookahead: px | {x, y}}.
+  const look = { x: 0, y: 0 };
+  GK.follow = (target, o = {}) => { // camera follows an entity, clamped to level bounds if given
+    let tx = GK.cx(target) - GK.width / 2, ty = GK.cy(target) - GK.height / 2; const k = o.lerp ?? 0.12;
+    if (o.lookahead) { const la = typeof o.lookahead === "number" ? { x: o.lookahead, y: 0 } : o.lookahead, sp = o.lookSpeed ?? 150;
+      look.x = GK.lerp(look.x, GK.sign(target.vx || 0) * (la.x || 0) * Math.min(1, Math.abs(target.vx || 0) / sp), 0.05);
+      look.y = GK.lerp(look.y, GK.sign(target.vy || 0) * (la.y || 0) * Math.min(1, Math.abs(target.vy || 0) / sp), 0.05); tx += look.x; ty += look.y; }
+    if (o.deadzone) { const dz = typeof o.deadzone === "number" ? { w: o.deadzone, h: o.deadzone } : o.deadzone;
+      const dx = tx - GK.cam.x, dy = ty - GK.cam.y;
+      tx = Math.abs(dx) <= dz.w / 2 ? GK.cam.x : tx - GK.sign(dx) * dz.w / 2; ty = Math.abs(dy) <= dz.h / 2 ? GK.cam.y : ty - GK.sign(dy) * dz.h / 2; }
+    GK.cam.x = GK.lerp(GK.cam.x, tx, k); GK.cam.y = GK.lerp(GK.cam.y, ty, k);
+    if (o.level) {
+      const z = GK.cam.zoom || 1;
+      if (z === 1) { GK.cam.x = GK.clamp(GK.cam.x, 0, Math.max(0, o.level.w - GK.width)); GK.cam.y = GK.clamp(GK.cam.y, 0, Math.max(0, o.level.h - GK.height)); }
+      else { const hw = GK.width / (2 * z), hh = GK.height / (2 * z);
+        GK.cam.x = o.level.w < hw * 2 ? o.level.w / 2 - GK.width / 2 : GK.clamp(GK.cam.x, hw - GK.width / 2, o.level.w - hw - GK.width / 2);
+        GK.cam.y = o.level.h < hh * 2 ? o.level.h / 2 - GK.height / 2 : GK.clamp(GK.cam.y, hh - GK.height / 2, o.level.h - hh - GK.height / 2); }
+    }
+    if (o.lockY) GK.cam.y = 0;
+  };
+  // screen feel. kit 2 shake is trauma-based: the offset is amount × trauma² of smooth noise, trauma falls to 0 over `seconds`.
+  // kit 1 keeps the legacy shake exactly (uniform jitter drawn from GK.rand at render), because the legacy games' random
+  // streams — and so their play — depend on it.
+  let shakeAmt = 0, shakeDur = 0.25, trauma = 0, shakeT = 0, hitstopN = 0, slowScale = 1, slowLeft = 0, flashFx = null;
+  GK.shake = (amount = 6, seconds = 0.25) => {
+    if (!K2) { shakeAmt = Math.max(shakeAmt, amount); shakeT = Math.max(shakeT, seconds); return; }
+    if (amount >= shakeAmt * trauma * trauma) { shakeAmt = amount; shakeDur = Math.max(STEP, seconds); trauma = 1; } };
+  GK.hitstop = (sec = 0.07) => { hitstopN = Math.max(hitstopN, Math.ceil(sec / STEP - 1e-9)); };   // counted in fixed steps
+  GK.slowmo = (scaleK = 0.35, sec = 0.6) => { slowScale = GK.clamp(scaleK, 0.05, 1); slowLeft = sec; };  // sec of SIMULATION time
+  GK.flash = (color, t = 0.15) => { flashFx = { color: color ?? (K2 ? theme.palette.ink : "#fff"), t, max: t }; };
+  const shakeOffset = () => { if (!K2) return shakeT > 0 ? [GK.rand(-shakeAmt, shakeAmt), GK.rand(-shakeAmt, shakeAmt)] : [0, 0];
+    const k = shakeAmt * trauma * trauma; if (k <= 0) return [0, 0]; const f = GK.stats.frames * 0.9;
+    return [k * (GK.noise1(f + 13.7) * 2 - 1), k * (GK.noise1(f + 71.3) * 2 - 1)]; };
+
+  // ───────────────────────────── particles, trails, emitters, timers, tweens ─────────────────────────────
+  const MAXP = 600;
+  let particles = [], timers = [], floaters = [], tweens = [], seqs = [], emitters = [], trails = [], banners = [];
+  const addParticle = (p) => { if (particles.length >= MAXP) particles.shift(); particles.push(p); };
+  const pal = (k, fallback) => (K2 && theme.palette[k]) || fallback;
+  GK.burst = (x, y, o = {}) => {
+    const n = o.count || 12;
+    for (let i = 0; i < n; i++) {
+      const a = o.angle !== undefined ? o.angle + GK.rand(-(o.spread ?? 0.5), o.spread ?? 0.5) : GK.rand(Math.PI * 2), sp = GK.rand(o.speed ? o.speed * 0.4 : 60, o.speed || 220);
+      const p = { x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: o.life || 0.6, max: o.life || 0.6, color: Array.isArray(o.color) ? GK.pick(o.color) : o.color || pal("ink", "#fff"), size: o.size || 6, gravity: o.gravity ?? 300, emoji: o.emoji };
+      const shape = o.shape || (K2 ? theme.particles : undefined);
+      if (shape || o.colorEnd || o.sizeEnd !== undefined || o.blend || o.drag || o.spin) Object.assign(p, { shape, colorEnd: o.colorEnd, sizeEnd: o.sizeEnd, blend: o.blend, drag: o.drag || 0, spin: o.spin ? GK.rand(-o.spin, o.spin) : 0, rot: o.spin ? GK.rand(TAU) : 0, v2: true });
+      addParticle(p);
+    }
+  };
+  GK.float = (str, x, y, o = {}) => floaters.push({ str, x, y, life: o.life || 0.9, color: o.color || pal("ink", "#fff"), size: o.size || 22, font: o.font });
+  GK.particleCount = () => particles.length;
+  // continuous particles: {x, y, rate/sec, shape, color: [..], colorEnd, size: [a, b], sizeEnd, blend, drag, gravity, spin,
+  // life: s | [a, b], speed: n | [a, b], angle, spread, area: {w, h}, duration} → {follow(e, dx, dy), stop(), burst(n)}
+  const pickR = (v, d) => (Array.isArray(v) ? GK.rand(v[0], v[1]) : v ?? d);
+  function spawnFrom(em) {
+    const a = em.angle !== undefined ? em.angle + GK.rand(-(em.spread ?? 0.4), em.spread ?? 0.4) : GK.rand(TAU), sp = Array.isArray(em.speed) ? GK.rand(em.speed[0], em.speed[1]) : GK.rand((em.speed ?? 60) * 0.5, em.speed ?? 60);
+    const life = pickR(em.life, 0.8), size = pickR(em.size, 4);
+    addParticle({ x: em.x + (em.area ? GK.rand(-em.area.w / 2, em.area.w / 2) : 0), y: em.y + (em.area ? GK.rand(-em.area.h / 2, em.area.h / 2) : 0), vx: Math.cos(a) * sp, vy: Math.sin(a) * sp,
+      life, max: life, color: Array.isArray(em.color) ? GK.pick(em.color) : em.color || pal("ink", "#fff"), size, gravity: em.gravity ?? 0, shape: em.shape || (K2 ? theme.particles : undefined) || "circle",
+      colorEnd: em.colorEnd, sizeEnd: em.sizeEnd, blend: em.blend, drag: em.drag || 0, spin: em.spin ? GK.rand(-em.spin, em.spin) : 0, rot: GK.rand(TAU), alpha: em.alpha, v2: true });
+  }
+  GK.emitter = (o = {}) => {
+    const em = Object.assign({ x: 0, y: 0, rate: 30 }, o, { acc: 0, age: 0, target: null, dx: 0, dy: 0, dead: false,
+      follow(e, dx = 0, dy = 0) { this.target = e; this.dx = dx; this.dy = dy; return this; }, stop() { this.dead = true; return this; },
+      burst(n = 10) { for (let i = 0; i < n; i++) spawnFrom(this); return this; } });
+    emitters.push(em); return em;
+  };
+  // one-shot presets, colored from theme.palette under kit 2; every option can be overridden
+  const preset = (base) => (x, y, o = {}) => { const e = Object.assign({ x, y }, base(), o); for (let i = 0; i < (e.count ?? 12); i++) spawnFrom(e); };
+  GK.fx = {
+    explode: preset(() => ({ count: 28, shape: "spark", color: [pal("gold", "#fde047"), pal("accent", "#fb923c"), pal("bad", "#ef4444")], speed: [120, 340], life: [0.35, 0.7], size: [3, 6], sizeEnd: 0, drag: 2.5, gravity: 220 })),
+    dust: preset(() => ({ count: 8, shape: "circle", color: [pal("shade", "#94a3b8"), pal("ink", "#e2e8f0")], speed: [20, 70], angle: -Math.PI / 2, spread: 1.3, life: [0.3, 0.5], size: [3, 5], sizeEnd: 9, gravity: -20, drag: 3, alpha: 0.6 })),
+    sparkle: preset(() => ({ count: 10, shape: "star", color: [pal("gold", "#fde047"), pal("ink", "#fff")], speed: [30, 110], life: [0.4, 0.8], size: [4, 7], sizeEnd: 0, spin: 6, drag: 2 })),
+    splash: preset(() => ({ count: 16, shape: "circle", color: [pal("accent", "#38bdf8"), pal("ink", "#e0f2fe")], speed: [120, 300], angle: -Math.PI / 2, spread: 0.9, life: [0.4, 0.75], size: [3, 6], sizeEnd: 1, gravity: 700 })),
+    confetti: preset(() => ({ count: 40, shape: "square", color: [pal("accent", "#f472b6"), pal("good", "#4ade80"), pal("gold", "#facc15"), pal("bad", "#60a5fa")], speed: [160, 380], angle: -Math.PI / 2, spread: 1.2, life: [1.0, 1.8], size: [4, 7], gravity: 420, drag: 1.4, spin: 10 })),
+    smoke: preset(() => ({ count: 10, shape: "circle", color: [pal("shade", "#475569")], speed: [10, 40], angle: -Math.PI / 2, spread: 0.8, life: [0.8, 1.4], size: [6, 10], sizeEnd: 22, gravity: -40, drag: 1, alpha: 0.5 })),
+    magic: preset(() => ({ count: 18, shape: "star", color: [pal("accent", "#c084fc"), pal("gold", "#fde047")], speed: [60, 160], life: [0.5, 0.9], size: [3, 6], sizeEnd: 0, gravity: -80, drag: 3, spin: 8, blend: "lighter" })),
+  };
+  // a ribbon behind an entity: GK.trail(e, {len = 14, width = 8, color, fade = true, blend, dx, dy}) → {stop(), clear()}
+  GK.trail = (e, o = {}) => { const tr = { e, len: o.len ?? 14, width: o.width ?? 8, color: o.color || pal("accent", "#fff"), fade: o.fade ?? true, blend: o.blend, dx: o.dx ?? 0, dy: o.dy ?? 0, pts: [], dead: false,
+    stop() { this.dead = true; }, clear() { this.pts.length = 0; } }; trails.push(tr); return tr; };
+  GK.after = (s, fn) => { const t = { t: s, fn, every: false }; timers.push(t); return t; };
+  GK.every = (s, fn) => { const t = { t: s, fn, every: s }; timers.push(t); return t; };
+  GK.cancel = (t) => { timers = timers.filter((x) => x !== t); };
+  // tweens count simulation time: GK.tween(obj, {x: 100}, 0.4, {ease: "backOut", delay, yoyo, loop: n | true, done}) → {stop(), finished}
+  GK.tween = (obj, props, dur, o = {}) => {
+    const ease = typeof o.ease === "function" ? o.ease : GK.ease[o.ease || "quadOut"];
+    if (!ease) throw new Error(`GK.tween: unknown ease '${o.ease}' — ${Object.keys(GK.ease).join(" ")}`);
+    const tw = { obj, props, dur: Math.max(1e-6, dur), t: -(o.delay || 0), ease, yoyo: !!o.yoyo, loops: o.loop === true ? Infinity : o.loop || 0, done: o.done, from: null, dead: false, finished: false,
+      stop() { this.dead = true; this.finished = true; } };
+    tweens.push(tw); return tw;
+  };
+  function tickTween(tw, dt) {
+    tw.t += dt; if (tw.t < 0) return;
+    if (!tw.from) { tw.from = {}; for (const k in tw.props) tw.from[k] = tw.obj[k] ?? 0; }
+    const cyc = tw.yoyo ? 2 : 1, p = tw.t / tw.dur, end = (tw.loops + 1) * cyc, over = p >= end;
+    const q = over ? (tw.yoyo ? 0 : 1) : p % cyc, k = q <= 1 ? q : 2 - q, e = tw.ease(k);
+    for (const key in tw.props) tw.obj[key] = tw.from[key] + (tw.props[key] - tw.from[key]) * e;
+    if (over) { tw.dead = true; tw.finished = true; if (tw.done) tw.done(tw.obj); }
+  }
+  // GK.seq([0.2, () => …, [obj, props, dur, opts], tweenHandle]) — numbers wait, functions run (a returned tween is awaited)
+  GK.seq = (items) => { const s = { items: items.slice(), wait: 0, cur: null, dead: false, finished: false, stop() { this.dead = true; this.finished = true; if (this.cur && this.cur.stop) this.cur.stop(); } };
+    seqs.push(s); runSeq(s, 0); return s; };
+  function runSeq(s, dt) {
+    if (s.wait > 0) { s.wait -= dt; if (s.wait > 0) return; }
+    while (!s.dead) {
+      if (s.cur && !s.cur.finished) return; s.cur = null;
+      if (!s.items.length) { s.dead = true; s.finished = true; return; }
+      const it = s.items.shift();
+      if (typeof it === "number") { s.wait = it; if (it > 0) return; }
+      else if (typeof it === "function") { const r = it(); if (r && typeof r === "object" && "finished" in r) s.cur = r; }
+      else if (Array.isArray(it)) s.cur = GK.tween(...it);
+      else if (it && typeof it === "object" && "finished" in it) s.cur = it;
+    }
+  }
+  // squash & stretch: sets e.sx/e.sy and springs them back to 1 (pass {sx: e.sx, sy: e.sy} to GK.img or sprite.draw)
+  const squashes = new WeakMap();
+  GK.squash = (e, amount = 0.3, dur = 0.35) => { const old = squashes.get(e); if (old) old.stop();
+    e.sx = 1 + amount; e.sy = 1 - amount; const tw = GK.tween(e, { sx: 1, sy: 1 }, dur, { ease: "elasticOut" }); squashes.set(e, tw); return tw; };
+  // kit 1 only: a big centered announcement (kit 2 games draw their own)
+  const legacyBanner = (text, o = {}) => { banners.push({ text, sub: o.sub, color: o.color || "#fde68a", size: o.size || 56, t: 0, max: o.time || 1.8 }); };
+  function tickFx(dt) {
+    for (const p of particles) {
+      if (p.drag) { const k = Math.max(0, 1 - p.drag * dt); p.vx *= k; p.vy *= k; }
+      p.vy += p.gravity * dt; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt; if (p.spin) p.rot += p.spin * dt;
+    }
+    particles = particles.filter((p) => p.life > 0);
+    for (const f of floaters) { f.y -= 40 * dt; f.life -= dt; } floaters = floaters.filter((f) => f.life > 0);
+    if (shakeT > 0) { shakeT -= dt; if (shakeT <= 0) shakeAmt = 0; }
+    for (const t of timers.slice()) { t.t -= dt; if (t.t <= 0) { if (t.every) t.t += t.every; else timers = timers.filter((x) => x !== t); try { t.fn(); } catch (e) { fail(e); } } }
+    for (const tw of tweens) if (!tw.dead) { try { tickTween(tw, dt); } catch (e) { tw.dead = true; fail(e); } }
+    tweens = tweens.filter((tw) => !tw.dead);
+    for (const s of seqs) { try { runSeq(s, dt); } catch (e) { s.dead = true; fail(e); } } seqs = seqs.filter((s) => !s.dead);
+    for (const em of emitters) { if (em.dead) continue;
+      if (em.target) { const t = em.target; em.x = (t.w !== undefined ? GK.cx(t) : t.x) + em.dx; em.y = (t.h !== undefined ? GK.cy(t) : t.y) + em.dy; }
+      em.acc += em.rate * dt; while (em.acc >= 1) { em.acc -= 1; spawnFrom(em); }
+      em.age += dt; if (em.duration && em.age >= em.duration) em.dead = true; }
+    emitters = emitters.filter((em) => !em.dead);
+    for (const tr of trails) { if (tr.dead) continue; const e = tr.e;
+      tr.pts.push({ x: (e.w !== undefined ? GK.cx(e) : e.x) + tr.dx, y: (e.h !== undefined ? GK.cy(e) : e.y) + tr.dy }); if (tr.pts.length > tr.len) tr.pts.shift(); }
+    trails = trails.filter((tr) => !tr.dead);
+  }
+  // screen effects run on UNSCALED steps, so a flash or shake keeps moving during hitstop
+  function tickScreen(d) {
+    if (trauma > 0) { trauma = Math.max(0, trauma - d / shakeDur); if (!trauma) shakeAmt = 0; }
+    if (flashFx) { flashFx.t -= d; if (flashFx.t <= 0) flashFx = null; }
+    for (const b of banners) b.t += d; banners = banners.filter((b) => b.t < b.max);
+  }
+  function drawParticle(p) {
+    const k = 1 - GK.clamp(p.life / p.max, 0, 1), s = p.sizeEnd !== undefined ? GK.lerp(p.size, p.sizeEnd, k) : p.size;
+    ctx.globalAlpha = GK.clamp(p.life / p.max, 0, 1) * (p.alpha ?? 1); if (s <= 0) return;
+    const col = p.colorEnd ? GK.mix(p.color, p.colorEnd, k) : p.color; ctx.globalCompositeOperation = p.blend || "source-over";
+    if (p.emoji) return GK.emoji(p.emoji, p.x, p.y, s * 3);
+    ctx.fillStyle = col;
+    switch (p.shape) {
+      case "circle": ctx.beginPath(); ctx.arc(p.x, p.y, s / 2, 0, TAU); ctx.fill(); break;
+      case "spark": { const v = Math.hypot(p.vx, p.vy) || 1, L = s * 1.5 + v * 0.03; ctx.strokeStyle = col; ctx.lineWidth = Math.max(1, s / 2.5); ctx.lineCap = "round";
+        ctx.beginPath(); ctx.moveTo(p.x - (p.vx / v) * L, p.y - (p.vy / v) * L); ctx.lineTo(p.x, p.y); ctx.stroke(); break; }
+      case "star": { ctx.beginPath(); for (let i = 0; i < 10; i++) { const r = i % 2 ? s * 0.22 : s * 0.55, a = p.rot + (i * Math.PI) / 5; ctx.lineTo(p.x + Math.cos(a) * r, p.y + Math.sin(a) * r); } ctx.closePath(); ctx.fill(); break; }
+      default: if (p.rot) { ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillRect(-s / 2, -s / 2, s, s); ctx.restore(); } else ctx.fillRect(p.x - s / 2, p.y - s / 2, s, s);
+    }
+  }
+  function drawFx() {
+    for (const tr of trails) { const n = tr.pts.length; if (n < 2) continue; ctx.save(); ctx.globalCompositeOperation = tr.blend || "source-over"; ctx.strokeStyle = tr.color; ctx.lineCap = "round";
+      for (let i = 1; i < n; i++) { const f = i / n; ctx.globalAlpha = tr.fade ? f : 1; ctx.lineWidth = Math.max(0.5, tr.width * f); ctx.beginPath(); ctx.moveTo(tr.pts[i - 1].x, tr.pts[i - 1].y); ctx.lineTo(tr.pts[i].x, tr.pts[i].y); ctx.stroke(); }
+      ctx.restore(); }
+    for (const p of particles) { if (p.v2) { drawParticle(p); continue; } ctx.globalAlpha = GK.clamp(p.life / p.max, 0, 1); if (p.emoji) GK.emoji(p.emoji, p.x, p.y, p.size * 3); else GK.rect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size, p.color); }
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over";
+    for (const f of floaters) { ctx.globalAlpha = GK.clamp(f.life, 0, 1); GK.text(f.str, f.x, f.y, K2 ? { size: f.size, color: f.color, font: f.font } : { size: f.size, color: f.color, stroke: "#000" }); }
+    ctx.globalAlpha = 1;
+  }
+
+  // ───────────────────────────── health & boss bar ─────────────────────────────
+  // GK.health(max, {inv = 0.5, onHit(h, n), onDeath(h)}) → {hp, max, frac, alive, invulnerable, flash, hit(n), heal(n), reset()}
+  GK.health = (max, o = {}) => ({ max, hp: max, inv: o.inv ?? 0.5, until: -1, ghostFrom: 1, hitAt: -9,
+    get frac() { return GK.clamp(this.hp / this.max, 0, 1); }, get alive() { return this.hp > 0; },
+    get invulnerable() { return GK.stats.time < this.until; },
+    get flash() { return this.invulnerable && Math.floor(GK.stats.time * 20) % 2 === 0; },
+    get ghost() { return GK.lerp(this.ghostFrom, this.frac, GK.clamp((GK.stats.time - this.hitAt - 0.25) / 0.5, 0, 1)); },
+    hit(n = 1) { if (!this.alive || this.invulnerable || n <= 0) return false; this.ghostFrom = this.ghost; this.hitAt = GK.stats.time;
+      this.hp = Math.max(0, this.hp - n); this.until = GK.stats.time + this.inv; if (o.onHit) o.onHit(this, n); if (!this.alive && o.onDeath) o.onDeath(this); return true; },
+    heal(n = 1) { this.hp = Math.min(this.max, this.hp + n); }, reset() { this.hp = this.max; this.until = -1; this.ghostFrom = 1; } });
+  // a boss health bar across the top of the view: GK.bossBar(health | {hp, max}, {name, style: {color, back, ghost, ink, y, h, w, font, size}})
+  GK.bossBar = (b, o = {}) => withView(() => {
+    const st = o.style || {}, W = GK.width, w = st.w ?? W * 0.6, h = st.h ?? Math.max(6, Math.round(GK.height / 40)), a = GK.anchor("t", 0, st.y ?? 14), x = a.x - w / 2, y = a.y + (o.name ? (st.size ?? 16) + 4 : 0);
+    const frac = GK.clamp(b.hp / b.max, 0, 1), ghost = b.ghost ?? frac, rad = isPixel() ? 0 : h / 2;
+    GK.rect(x - 2, y - 2, w + 4, h + 4, st.back || pal("shade", "rgba(0,0,0,0.6)"), rad);
+    if (ghost > frac) GK.rect(x, y, w * ghost, h, st.ghost || pal("ink", "#fff"), rad);
+    GK.rect(x, y, w * frac, h, st.color || pal("bad", "#ef4444"), rad);
+    if (o.name) GK.text(o.name, a.x, a.y + (st.size ?? 16) / 2, { size: st.size ?? 16, color: st.ink || pal("ink", "#fff"), font: st.font, stroke: K2 ? undefined : "#000" });
+  });
+
+  // ───────────────────────────── light & post ─────────────────────────────
+  // GK.light.begin(ambient) · .add(x, y, r, color) in the current (world) space · .end() multiplies a half-res light map over
+  // the view. GK.glowSprite(r, color) → a cached soft disc; GK.vignette(strength); GK.post({scanlines, grain, tint, vignette}).
+  const glowCache = new Map();
+  GK.glowSprite = (r, color) => { const key = r + "|" + color; let c = glowCache.get(key); if (c) return c;
+    c = makeLayer(r * 2, r * 2, (g) => { g.fillStyle = addStops(g.createRadialGradient(r, r, 0, r, r, r), [[0, color], [0.35, GK.alpha(color, 0.55)], [1, GK.alpha(color, 0)]]); g.fillRect(0, 0, r * 2, r * 2); }, 1);
+    if (glowCache.size > 128) glowCache.clear(); glowCache.set(key, c); return c; };
+  let lightCv = null;
+  GK.light = { ambient: null, list: [],
+    begin(ambient) { if (!ambient) throw new Error("GK.light.begin: ambient is required — decide it in the art direction"); this.ambient = ambient; this.list.length = 0; },
+    add(x, y, r, color) { const m = ctx.getTransform(), p = m.transformPoint({ x, y }), s = Math.hypot(m.a, m.b);
+      this.list.push({ x: (p.x - tgt.ox) * 0.5, y: (p.y - tgt.oy) * 0.5, r: r * s * 0.5, color: color || pal("gold", "#fff") }); },
+    end() {
+      const w = Math.max(1, Math.ceil(tgt.w * 0.5)), h = Math.max(1, Math.ceil(tgt.h * 0.5));
+      if (!lightCv) lightCv = document.createElement("canvas"); if (lightCv.width !== w || lightCv.height !== h) { lightCv.width = w; lightCv.height = h; }
+      const g = lightCv.getContext("2d"); g.globalCompositeOperation = "source-over"; g.fillStyle = this.ambient; g.fillRect(0, 0, w, h); g.globalCompositeOperation = "lighter";
+      for (const L of this.list) g.drawImage(GK.glowSprite(64, L.color), L.x - L.r, L.y - L.r, L.r * 2, L.r * 2);
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = "multiply"; ctx.imageSmoothingEnabled = true; ctx.drawImage(lightCv, tgt.ox, tgt.oy, tgt.w, tgt.h); ctx.restore();
+      this.list.length = 0;
+    } };
+  const vigCache = new Map();
+  GK.vignette = (strength = 0.35, color) => withView(() => {
+    const W = GK.width, H = GK.height, col = color || pal("shade", "#000"), key = [W, H, strength, col].join("|");
+    let c = vigCache.get(key); if (!c) { c = makeLayer(W, H, (g) => { g.fillStyle = addStops(g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.35, W / 2, H / 2, Math.hypot(W, H) * 0.55), [[0, GK.alpha(col, 0)], [1, GK.alpha(col, strength)]]); g.fillRect(0, 0, W, H); }, 0.5); if (vigCache.size > 16) vigCache.clear(); vigCache.set(key, c); }
+    ctx.drawImage(c, 0, 0, W, H);
+  });
+  let postCfg = null, grainCv = null, scanCv = null;
+  GK.post = (cfg) => { postCfg = cfg || null; };
+  function applyPost() {
+    if (!postCfg) return; const m = mainCtx, vr = { x: offX * dpr, y: offY * dpr, w: GK.width * scale * dpr, h: GK.height * scale * dpr };
+    m.save(); m.setTransform(1, 0, 0, 1, 0, 0); m.beginPath(); m.rect(vr.x, vr.y, vr.w, vr.h); m.clip();
+    if (postCfg.tint) { const t = typeof postCfg.tint === "string" ? { color: postCfg.tint, alpha: 1 } : postCfg.tint; m.globalAlpha = t.alpha ?? 1; m.globalCompositeOperation = "multiply"; m.fillStyle = t.color; m.fillRect(vr.x, vr.y, vr.w, vr.h); m.globalAlpha = 1; m.globalCompositeOperation = "source-over"; }
+    if (postCfg.vignette) { m.fillStyle = addStops(m.createRadialGradient(vr.x + vr.w / 2, vr.y + vr.h / 2, Math.min(vr.w, vr.h) * 0.35, vr.x + vr.w / 2, vr.y + vr.h / 2, Math.hypot(vr.w, vr.h) * 0.55), [[0, "rgba(0,0,0,0)"], [1, `rgba(0,0,0,${postCfg.vignette})`]]); m.fillRect(vr.x, vr.y, vr.w, vr.h); }
+    if (postCfg.scanlines) { const period = Math.max(2, Math.round(isPixel() ? scale * dpr : 3 * Math.max(1, dpr / 2)));
+      if (!scanCv || scanCv.period !== period) { scanCv = document.createElement("canvas"); scanCv.width = 1; scanCv.height = period; scanCv.period = period;
+        const g = scanCv.getContext("2d"), band = Math.max(1, Math.floor(period / 2)); g.fillStyle = "#000"; g.fillRect(0, period - band, 1, band); }
+      const pat = m.createPattern(scanCv, "repeat"); pat.setTransform(new DOMMatrix().translate(0, vr.y)); m.globalAlpha = postCfg.scanlines; m.fillStyle = pat; m.fillRect(vr.x, vr.y, vr.w, vr.h); m.globalAlpha = 1; }
+    if (postCfg.grain) { if (!grainCv) { grainCv = document.createElement("canvas"); grainCv.width = grainCv.height = 128; const g = grainCv.getContext("2d"), img = g.createImageData(128, 128);
+        for (let i = 0; i < img.data.length; i += 4) { const v = Math.floor(hash2(i, 991) * 255); img.data[i] = img.data[i + 1] = img.data[i + 2] = v; img.data[i + 3] = 255; } g.putImageData(img, 0, 0); }
+      const f = GK.stats.renders, pat = m.createPattern(grainCv, "repeat"); pat.setTransform(new DOMMatrix().translate(Math.floor(hash2(f, 1) * 128), Math.floor(hash2(f, 2) * 128)));
+      m.globalAlpha = postCfg.grain; m.globalCompositeOperation = "overlay"; m.fillStyle = pat; m.fillRect(vr.x, vr.y, vr.w, vr.h); }
+    m.restore();
+  }
+
+  // ───────────────────────────── audio (WebAudio synth, no files) ─────────────────────────────
+  // kit 1: master gain → speakers, exactly as before. kit 2: master → compressor → speakers, plus a generated-impulse
+  // reverb send. ?arcade=1 builds the whole graph with the master at 0, so audio errors still surface under test.
+  let ac = null, master = null, musicBus = null, verbSend = null, noiseBuf = null, soundRng = null, pendingSong = null, curSong = null; GK.muted = false;
+  function ensureAudio() {
+    if (ac) return ac;
+    try { ac = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { ac = null; return null; }
+    master = ac.createGain(); master.gain.value = GK.params.arcade ? 0 : K2 ? 0.5 : 0.35;
+    if (K2) {
+      const comp = ac.createDynamicsCompressor(); comp.threshold.value = -14; comp.knee.value = 24; comp.ratio.value = 4; comp.attack.value = 0.004; comp.release.value = 0.2;
+      master.connect(comp); comp.connect(ac.destination);
+      const verb = ac.createConvolver(), len = Math.floor(ac.sampleRate * 2), ir = ac.createBuffer(2, len, ac.sampleRate);
+      for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (hash2(i, 7 + ch) * 2 - 1) * (1 - i / len) ** 3; }
+      verb.buffer = ir; verbSend = ac.createGain(); verbSend.gain.value = theme.sound && theme.sound.reverb !== undefined ? theme.sound.reverb : 0.16; verbSend.connect(verb); verb.connect(master);
+    } else master.connect(ac.destination);
+    musicBus = ac.createGain(); musicBus.connect(master); if (verbSend) musicBus.connect(verbSend);
+    noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate); const nd = noiseBuf.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = hash2(i, 4242) * 2 - 1;
+    return ac;
+  }
+  function unlockAudio() {
+    if (!ensureAudio()) return;
+    if (ac.state === "suspended") ac.resume();
+    if (pendingSong) { const s = pendingSong; pendingSong = null; s.play(); }
+  }
+  GK.audioState = () => (ac ? ac.state : "none");
+  // kit 1 presets change the built-in voices: chip (default) · soft · arcade · toy
+  const PRESETS = { chip: null, soft: { map: { square: "triangle", sawtooth: "triangle" }, vol: 0.7, pitch: 1 }, arcade: { map: { triangle: "square", sine: "square" }, vol: 0.9, pitch: 1 }, toy: { map: { square: "triangle", sawtooth: "triangle", sine: "triangle" }, vol: 0.85, pitch: 1.5 } };
+  function tone({ type = "square", f0 = 440, f1, dur = 0.15, vol = 1, delay = 0, slide, noise }) {
+    if (!ac || GK.muted) return; const P = PRESETS[opts.sound] || null;
+    if (P) { type = P.map[type] || type; vol *= P.vol; f0 *= P.pitch; if (f1) f1 *= P.pitch; }
+    const t = ac.currentTime + delay; const g = ac.createGain(); g.connect(master);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    if (noise) { // kit 1 keeps its original per-sound noise from Math.random (the legacy games' random stream depends on it)
+      const buf = ac.createBuffer(1, ac.sampleRate * dur, ac.sampleRate); const d = buf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      const src = ac.createBufferSource(); src.buffer = buf; const fl = ac.createBiquadFilter(); fl.type = "lowpass"; fl.frequency.setValueAtTime(f0, t); fl.frequency.exponentialRampToValueAtTime(f1 || 100, t + dur); src.connect(fl); fl.connect(g); src.start(t); src.stop(t + dur); return; }
+    const o = ac.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0, t); if (f1) o.frequency.exponentialRampToValueAtTime(f1, t + dur * (slide || 1)); o.connect(g); o.start(t); o.stop(t + dur + 0.02);
+  }
+  const SFX = {
+    jump: () => tone({ type: "square", f0: 220, f1: 660, dur: 0.18 }),
+    coin: () => { tone({ type: "sine", f0: 988, dur: 0.08, vol: 0.8 }); tone({ type: "sine", f0: 1319, dur: 0.22, delay: 0.08, vol: 0.8 }); },
+    hit: () => { tone({ noise: true, f0: 1200, f1: 200, dur: 0.2 }); tone({ type: "sawtooth", f0: 200, f1: 60, dur: 0.2 }); },
+    explode: () => { tone({ noise: true, f0: 800, f1: 60, dur: 0.6, vol: 1.2 }); },
+    shoot: () => tone({ type: "sawtooth", f0: 900, f1: 200, dur: 0.12, vol: 0.6 }),
+    powerup: () => [523, 659, 784, 1047].forEach((f, i) => tone({ type: "square", f0: f, dur: 0.12, delay: i * 0.07, vol: 0.7 })),
+    win: () => [523, 659, 784, 1047, 1319].forEach((f, i) => tone({ type: "triangle", f0: f, dur: 0.25, delay: i * 0.12 })),
+    lose: () => [440, 370, 311, 220].forEach((f, i) => tone({ type: "sawtooth", f0: f, dur: 0.3, delay: i * 0.18, vol: 0.7 })),
+    select: () => tone({ type: "square", f0: 660, dur: 0.06, vol: 0.5 }),
+    bounce: () => tone({ type: "sine", f0: 300, f1: 500, dur: 0.1 }),
+    splash: () => tone({ noise: true, f0: 3000, f1: 400, dur: 0.35, vol: 0.7 }),
+    laser: () => tone({ type: "square", f0: 1400, f1: 300, dur: 0.2, vol: 0.5 }),
+    tick: () => tone({ type: "sine", f0: 1000, dur: 0.03, vol: 0.4 }),
+  };
+  const WAVES = { square: "square", tri: "triangle", triangle: "triangle", saw: "sawtooth", sawtooth: "sawtooth", sine: "sine" };
+  const sfxDefs = {};
+  // one defined sound: {wave | noise, f0, f1, dur, vol, attack, slide, delay, vibrato: depthHz | {rate, depth}, arp: [semitones], filter}
+  function playDef(d, vary) {
+    if (!ac || GK.muted) return; const t = ac.currentTime + (d.delay || 0), dur = d.dur ?? 0.15, vol = d.vol ?? 0.7, f0 = d.f0 * vary, f1 = d.f1 ? d.f1 * vary : null;
+    const g = ac.createGain(); g.connect(master); if (verbSend && d.verb !== false) g.connect(verbSend);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + (d.attack ?? 0.005)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    if (d.noise) { const src = ac.createBufferSource(); src.buffer = noiseBuf; src.loop = true; const fl = ac.createBiquadFilter(); fl.type = d.filter || "lowpass";
+      fl.frequency.setValueAtTime(f0, t); fl.frequency.exponentialRampToValueAtTime(f1 || 100, t + dur); src.connect(fl); fl.connect(g); src.start(t); src.stop(t + dur + 0.02); return; }
+    const o = ac.createOscillator(); o.type = WAVES[d.wave] || "square"; o.frequency.setValueAtTime(f0, t);
+    if (d.arp && d.arp.length) d.arp.forEach((s, i) => o.frequency.setValueAtTime(f0 * 2 ** (s / 12), t + (i * dur) / d.arp.length));
+    else if (f1) o.frequency.exponentialRampToValueAtTime(f1, t + dur * (d.slide || 1));
+    if (d.vibrato) { const v = typeof d.vibrato === "number" ? { rate: 7, depth: d.vibrato } : d.vibrato, lfo = ac.createOscillator(), lg = ac.createGain();
+      lfo.frequency.value = v.rate ?? 7; lg.gain.value = v.depth ?? 10; lfo.connect(lg); lg.connect(o.frequency); lfo.start(t); lfo.stop(t + dur + 0.02); }
+    o.connect(g); o.start(t); o.stop(t + dur + 0.02);
+  }
+  GK.sfx = (name) => {
+    const d = sfxDefs[name];
+    if (d) { if (!ac || GK.muted) return; try { playDef(d, soundRng ? 1 + (soundRng() * 2 - 1) * 0.04 : 1); } catch (e) { fail(e); } return; }
+    if (K2) throw new Error(`kit 2: sfx '${name}' is not defined — GK.sfx.def('${name}', {...}) first`);
+    const f = SFX[name]; if (f) { try { f(); } catch (e) {} }
+  };
+  GK.sfx.def = (name, d) => {
+    if (!d || (!d.noise && !WAVES[d.wave])) throw new Error(`GK.sfx.def('${name}'): wave (square tri saw sine) or noise:true is required`);
+    if (!(d.f0 > 0)) throw new Error(`GK.sfx.def('${name}'): f0 (Hz) is required`);
+    sfxDefs[name] = d; return name;
+  };
+  GK.sfxNames = Object.keys(SFX);
+
+  // ── songs: a lookahead scheduler (25 ms tick, 100 ms ahead) over note strings ──
+  // GK.song({bpm, swing, div = 2 (steps per beat), vol, tracks: {lead: {inst, notes: "C5 . E5 G5 | A5 - . .", vol, oct, len, at},
+  //   drums: {pat: "k.s.kks.", vol}}}) → {play(), stop(), fade(s), intensity(0..1), bpm (live)}
+  // notes: C4 C#4 Eb3 · "." rest · "-" hold · "C4+E4+G4" chord · "|" is decoration. drums: k kick · s snare · h/x hat · o open hat · c clap.
+  // A track with `at: 0.5` only plays at intensity ≥ 0.5; intensity also opens the song's low-pass filter.
+  const INST = ["square", "tri", "saw", "sine", "pluck", "pad", "bell"];
+  const NOTE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+  const noteHz = (tok, oct = 0) => { const m = /^([A-Ga-g])([#b]?)(-?\d)$/.exec(tok); if (!m) return null;
+    const midi = (parseInt(m[3]) + 1 + oct) * 12 + NOTE[m[1].toUpperCase()] + (m[2] === "#" ? 1 : m[2] === "b" ? -1 : 0); return 440 * 2 ** ((midi - 69) / 12); };
+  function voice(inst, f, t, dur, vol, dest) {
+    const g = ac.createGain(); g.connect(dest); const end = t + Math.max(0.05, dur);
+    const osc = (type, fr, det = 0) => { const o = ac.createOscillator(); o.type = type; o.frequency.value = fr; o.detune.value = det; return o; };
+    if (inst === "pluck" || inst === "pad") {
+      const fl = ac.createBiquadFilter(); fl.type = "lowpass"; fl.connect(g); const os = inst === "pad" ? [osc("sawtooth", f, -8), osc("sawtooth", f, 8)] : [osc("sawtooth", f)];
+      if (inst === "pluck") { fl.frequency.setValueAtTime(f * 8, t); fl.frequency.exponentialRampToValueAtTime(f * 1.5, t + 0.2); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(0.25, dur)); }
+      else { fl.frequency.value = 1400; g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol * 0.6, t + 0.15); g.gain.setValueAtTime(vol * 0.6, end); g.gain.linearRampToValueAtTime(0.0001, end + 0.3); }
+      for (const o of os) { o.connect(fl); o.start(t); o.stop(end + 0.35); } return;
+    }
+    if (inst === "bell") { for (const [mul, v] of [[1, 1], [2.76, 0.3], [5.4, 0.1]]) { const o = osc("sine", f * mul), og = ac.createGain(); og.gain.value = v; o.connect(og); og.connect(g); o.start(t); o.stop(t + 1.3); }
+      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 1.2); return; }
+    const o = osc(WAVES[inst] || "square", f); o.connect(g);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.005); g.gain.setValueAtTime(vol, end); g.gain.exponentialRampToValueAtTime(0.0001, end + 0.05);
+    o.start(t); o.stop(end + 0.07);
+  }
+  function drum(ch, t, vol, dest) {
+    const g = ac.createGain(); g.connect(dest);
+    const noise = (type, freq, d, v) => { const s = ac.createBufferSource(); s.buffer = noiseBuf; const fl = ac.createBiquadFilter(); fl.type = type; fl.frequency.value = freq; const ng = ac.createGain();
+      ng.gain.setValueAtTime(v * vol, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + d); s.connect(fl); fl.connect(ng); ng.connect(g); s.start(t); s.stop(t + d + 0.02); };
+    if (ch === "k") { const o = ac.createOscillator(); o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.12); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.28); o.connect(g); o.start(t); o.stop(t + 0.3); }
+    else if (ch === "s") { noise("highpass", 1200, 0.16, 0.7); const o = ac.createOscillator(); o.type = "triangle"; o.frequency.value = 190; const og = ac.createGain(); og.gain.setValueAtTime(0.5 * vol, t); og.gain.exponentialRampToValueAtTime(0.0001, t + 0.1); o.connect(og); og.connect(g); o.start(t); o.stop(t + 0.12); }
+    else if (ch === "h" || ch === "x") noise("highpass", 7000, 0.045, ch === "x" ? 0.45 : 0.3);
+    else if (ch === "o") noise("highpass", 6500, 0.22, 0.3);
+    else if (ch === "c") for (let i = 0; i < 3; i++) { const tt = t + i * 0.012, s = ac.createBufferSource(); s.buffer = noiseBuf; const fl = ac.createBiquadFilter(); fl.type = "bandpass"; fl.frequency.value = 1500; const ng = ac.createGain();
+      ng.gain.setValueAtTime(0.6 * vol, tt); ng.gain.exponentialRampToValueAtTime(0.0001, tt + (i === 2 ? 0.14 : 0.03)); s.connect(fl); fl.connect(ng); ng.connect(g); s.start(tt); s.stop(tt + 0.16); }
+  }
+  GK.song = (o) => {
+    if (!o || !o.tracks) throw new Error("GK.song: tracks are required");
+    const tracks = Object.entries(o.tracks).map(([name, tr]) => {
+      const drums = tr.pat !== undefined;
+      if (!drums && !INST.includes(tr.inst)) throw new Error(`GK.song: track '${name}' needs inst — one of ${INST.join(" ")}`);
+      if (!drums && typeof tr.notes !== "string") throw new Error(`GK.song: track '${name}' needs notes (or pat for drums)`);
+      const steps = drums ? tr.pat.replace(/[\s|]/g, "").split("") : tr.notes.split(/[\s|]+/).filter(Boolean);
+      return { name, drums, steps, inst: tr.inst, vol: tr.vol ?? (drums ? 0.7 : 0.3), oct: tr.oct ?? 0, len: tr.len ?? 0.9, div: tr.div ?? o.div ?? 2, at: tr.at ?? 0, idx: 0, next: 0, gain: null };
+    });
+    const s = { bpm: o.bpm ?? 120, swing: o.swing ?? 0, playing: false, level: 1, timer: null, bus: null, filter: null,
+      play() {
+        if (s.playing) return s; if (!ensureAudio() || ac.state !== "running") { pendingSong = s; if (ac && ac.state === "suspended") ac.resume().then(() => { if (pendingSong === s) { pendingSong = null; s.play(); } }, () => {}); return s; }
+        if (curSong && curSong !== s) curSong.stop(); curSong = s; s.playing = true;
+        s.bus = ac.createGain(); s.bus.gain.value = o.vol ?? 1; s.filter = ac.createBiquadFilter(); s.filter.type = "lowpass"; s.filter.frequency.value = 800 + 14000 * s.level;
+        s.bus.connect(s.filter); s.filter.connect(musicBus);
+        const t0 = ac.currentTime + 0.06; for (const tr of tracks) { tr.idx = 0; tr.next = t0; tr.gain = ac.createGain(); tr.gain.gain.value = s.level >= tr.at ? 1 : 0; tr.gain.connect(s.bus); }
+        s.timer = setInterval(s.tick, 25); s.tick(); return s;
+      },
+      tick() {
+        if (!s.playing) return; const horizon = ac.currentTime + 0.1;
+        for (const tr of tracks) {
+          const stepDur = 60 / s.bpm / tr.div; if (tr.next < ac.currentTime - 0.25) tr.next = ac.currentTime + 0.02;
+          while (tr.next < horizon) {
+            const i = tr.idx % tr.steps.length, tok = tr.steps[i], when = tr.next + (i % 2 ? s.swing * stepDur * 0.5 : 0);
+            if (tr.drums) { if (tok !== "." && tok !== "-") drum(tok, when, tr.vol, tr.gain); }
+            else if (tok !== "." && tok !== "-") { let hold = 1; while (tr.steps[(i + hold) % tr.steps.length] === "-" && hold < tr.steps.length) hold++;
+              for (const n of tok.split("+")) { const f = noteHz(n, tr.oct); if (f) voice(tr.inst, f, when, hold * stepDur * tr.len, tr.vol, tr.gain); } }
+            tr.idx++; tr.next += stepDur;
+          }
+        }
+      },
+      stop() { if (pendingSong === s) pendingSong = null; if (!s.playing) return s; s.playing = false; clearInterval(s.timer); const b = s.bus, t = ac.currentTime;
+        b.gain.setTargetAtTime(0, t, 0.02); setTimeout(() => { try { b.disconnect(); } catch (e) {} }, 200); if (curSong === s) curSong = null; return s; },
+      fade(sec = 1) { if (!s.playing) return s; s.bus.gain.setTargetAtTime(0, ac.currentTime, Math.max(0.01, sec) / 4); setTimeout(() => s.stop(), sec * 1000); return s; },
+      intensity(v) { s.level = GK.clamp(v, 0, 1); if (s.playing) { const t = ac.currentTime; s.filter.frequency.setTargetAtTime(800 + 14000 * s.level, t, 0.1);
+        for (const tr of tracks) tr.gain.gain.setTargetAtTime(s.level >= tr.at ? 1 : 0, t, 0.05); } return s; } };
+    return s;
+  };
+  // legacy one-track loop: notes ["C4","E4","G4",null] (null = rest), one note per beat
+  let legacySong = null;
+  GK.music = (notes, bpm = 140, o = {}) => {
+    GK.musicStop(); const inst = { square: "square", triangle: "tri", sawtooth: "saw", sine: "sine" }[o.type || "square"] || "square";
+    legacySong = GK.song({ bpm, div: 1, tracks: { lead: { inst, notes: notes.map((n) => n || ".").join(" "), vol: o.vol || 0.25, len: 0.9 } } }).play();
+  };
+  GK.musicStop = () => { if (legacySong) legacySong.stop(); legacySong = null; };
+
+  // ───────────────────────────── high score ─────────────────────────────
+  const slug = () => (opts && opts.slug) || (location.pathname.split("/").filter(Boolean).slice(-1)[0] || "game");
+  GK.best = (score, key = "score") => { const k = `gk-best-${slug()}-${key}`; let b = 0; try { b = parseFloat(localStorage.getItem(k) || "0") || 0; if (score > b) { b = score; localStorage.setItem(k, String(b)); } } catch (e) {} return b; };
+  GK.getBest = (key = "score") => { try { return parseFloat(localStorage.getItem(`gk-best-${slug()}-${key}`) || "0") || 0; } catch (e) { return 0; } };
+
+  // ───────────────────────────── scenes & transitions ─────────────────────────────
+  let scenes = {}, current = null, currentName = null, sceneT = 0, gameOverData = null, trans = null;
+  GK.sceneTime = () => sceneT;
+  GK.canAccept = () => sceneT >= 0.6;   // 0.6 s of SIMULATION time since the scene began: a retry press can't be the death press
+  const TRANS = ["fade", "iris", "wipe", "pixelate", "slide"];
+  function enterScene(name, data) {
+    const s = scenes[name];
+    try { if (current && current.exit) current.exit(); } catch (e) { fail(e); }
+    timers = []; particles = []; floaters = []; tweens = []; seqs = []; emitters = []; trails = []; banners = [];
+    trauma = 0; shakeAmt = 0; shakeT = 0; hitstopN = 0; slowScale = 1; slowLeft = 0; look.x = look.y = 0;
+    GK.cam.x = 0; GK.cam.y = 0; GK.cam.zoom = 1; GK.cam.rot = 0; GK.key._clear(); GK.p1._clear(); GK.p2._clear();
+    current = s; currentName = name; sceneT = 0; GK.scene = name;
+    try { if (s.enter) s.enter(data || {}); } catch (e) { fail(e); }
+  }
+  // GK.go(name, data) switches now. GK.go(name, data, {fx: "fade"|"iris"|"wipe"|"pixelate"|"slide", time = 0.4, color, at: {x, y}})
+  // covers the screen for time/2, switches, then uncovers; the old scene is frozen while it covers. Counted in fixed steps.
+  GK.go = (name, data, tr) => {
+    const s = scenes[name]; if (!s) return fail(new Error(`No scene named '${name}'. Scenes: ${Object.keys(scenes).join(", ")}`));
+    if (tr && tr.fx) {
+      if (!TRANS.includes(tr.fx)) return fail(new Error(`GK.go: unknown transition '${tr.fx}' — ${TRANS.join(" ")}`));
+      trans = { fx: tr.fx, time: Math.max(2 * STEP, tr.time ?? 0.4), t: 0, name, data, color: tr.color || (K2 ? theme.palette.bg : "#000"), at: tr.at, switched: false }; return;
+    }
+    trans = null; enterScene(name, data);
+  };
+  GK.gameOver = (data = {}) => {
+    if (!data || typeof data !== "object") data = {};
+    gameOverData = data; if (data.score !== undefined) data.best = GK.best(data.score);
+    if (K2) return GK.go("gameover", data, data.fx ? { fx: data.fx, time: data.fxTime, color: data.fxColor } : undefined);
+    if (data.won) GK.sfx("win"); else GK.sfx("lose"); GK.musicStop(); GK.go("gameover", data);
+  };
+  GK.restart = () => GK.go(opts.first || "play");
+  function tickTransition(d) {
+    if (!trans) return; trans.t += d;
+    if (!trans.switched && trans.t >= trans.time / 2) { trans.switched = true; enterScene(trans.name, trans.data); }
+    if (trans.t >= trans.time) trans = null;
+  }
+  function drawTransition() {
+    if (!trans) return; const half = trans.time / 2, c = GK.clamp(trans.switched ? 1 - (trans.t - half) / half : trans.t / half, 0, 1), W = GK.width, H = GK.height;
+    withView(() => {
+      ctx.fillStyle = trans.color;
+      if (trans.fx === "fade") { ctx.globalAlpha = c; ctx.fillRect(0, 0, W, H); }
+      else if (trans.fx === "wipe") { if (trans.switched) ctx.fillRect(W * (1 - c), 0, W * c + 1, H); else ctx.fillRect(0, 0, W * c, H); }
+      else if (trans.fx === "slide") { ctx.fillRect(trans.switched ? -W * (1 - c) : W * (1 - c), 0, W, H); }
+      else if (trans.fx === "iris") { const at = trans.at || { x: W / 2, y: H / 2 }, r = (1 - c) * Math.hypot(Math.max(at.x, W - at.x), Math.max(at.y, H - at.y));
+        ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.arc(at.x, at.y, Math.max(0, r), 0, TAU, true); ctx.fill("evenodd"); }
+      else if (trans.fx === "pixelate") {
+        const blk = 1 + Math.round(c * 24), src = ctx.canvas, sw = Math.max(1, Math.round(tgt.w / (blk * (tgt.w / W)))), sh = Math.max(1, Math.round(tgt.h / (blk * (tgt.h / H))));
+        if (!drawTransition.tmp) drawTransition.tmp = document.createElement("canvas"); const tmp = drawTransition.tmp; tmp.width = sw; tmp.height = sh;
+        tmp.getContext("2d").drawImage(src, tgt.ox, tgt.oy, tgt.w, tgt.h, 0, 0, sw, sh);
+        ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false; ctx.drawImage(tmp, 0, 0, sw, sh, tgt.ox, tgt.oy, tgt.w, tgt.h); ctx.restore();
+        ctx.globalAlpha = c ** 4; ctx.fillRect(0, 0, W, H);
+      }
+    });
+  }
+
+  // kit 1's built-in screens (GK.titleScene() / GK.gameOverScene() return them; kit 2 has neither)
+  function defaultTitle() {
+    return {
+      enter() { vc.visible = false; },
+      update() { if (GK.key.pressed("a") || GK.key.pressed("start") || GK.pointer.justDown) { GK.sfx("select"); GK.go(opts.first || "play"); } },
+      drawHud() {
+        const W = GK.width, H = GK.height, t = sceneT;
+        GK.rect(0, 0, W, H, "rgba(0,0,0,0.25)");
+        if (opts.icon) GK.emoji(opts.icon, W / 2, H * 0.24, Math.min(W, H) * 0.22);
+        GK.text(opts.title, W / 2, H * 0.47, { size: Math.min(64, W / 11), color: "#fff", stroke: "#000", strokeWidth: 8 });
+        if (opts.by) GK.text(`a game by ${opts.by}`, W / 2, H * 0.58, { size: 24, color: "#fde68a", stroke: "#000" });
+        (opts.howTo || []).forEach((line, i) => GK.text(line, W / 2, H * 0.68 + i * 26, { size: 18, color: "#e5e7eb", stroke: "#000", weight: "600" }));
+        const blink = Math.floor(t * 2) % 2 === 0;
+        if (blink) GK.text(GK.isTouch ? "TAP TO START" : "PRESS SPACE / ENTER TO START", W / 2, H * 0.9, { size: 22, color: "#fff", stroke: "#000" });
+      },
+    };
+  }
+  function defaultGameOver() {
+    let d = {};
+    return {
+      enter(data) { d = data; },
+      update() { if (sceneT > 0.6 && (GK.key.pressed("a") || GK.key.pressed("start") || GK.pointer.justDown)) { GK.sfx("select"); GK.go(opts.first || "play"); } },
+      drawHud() {
+        const W = GK.width, H = GK.height; GK.rect(0, 0, W, H, "rgba(0,0,0,0.55)");
+        GK.text(d.title || (d.won ? "YOU WIN!" : "GAME OVER"), W / 2, H * 0.3, { size: 60, color: d.won ? "#4ade80" : "#f87171", stroke: "#000", strokeWidth: 8 });
+        if (d.message) GK.text(d.message, W / 2, H * 0.44, { size: 22, color: "#fff", stroke: "#000" });
+        if (d.score !== undefined) GK.text(`Score: ${Math.round(d.score)}`, W / 2, H * 0.56, { size: 32, color: "#fff", stroke: "#000" });
+        if (d.best !== undefined) GK.text(`Best: ${Math.round(d.best)}${d.score >= d.best && d.score > 0 ? "  🏆 NEW BEST!" : ""}`, W / 2, H * 0.65, { size: 22, color: "#fde68a", stroke: "#000" });
+        if (sceneT > 0.6 && Math.floor(sceneT * 2) % 2 === 0) GK.text(GK.isTouch ? "TAP TO PLAY AGAIN" : "PRESS SPACE TO PLAY AGAIN", W / 2, H * 0.85, { size: 22, color: "#fff", stroke: "#000" });
+      },
+    };
+  }
+  GK.titleScene = defaultTitle; GK.gameOverScene = defaultGameOver; GK.banner = legacyBanner;
+  function drawBanners() {
+    for (const b of banners) { const k = b.t / b.max, s = GK.ease.backOut(GK.clamp(b.t / 0.35, 0, 1)), a = GK.clamp((1 - k) * 4, 0, 1);
+      ctx.save(); ctx.globalAlpha = a; ctx.translate(GK.width / 2, GK.height * 0.4); ctx.scale(s, s);
+      GK.text(b.text, 0, 0, { size: b.size, color: b.color, stroke: "#000", strokeWidth: 8 }); if (b.sub) GK.text(b.sub, 0, b.size * 0.8, { size: b.size * 0.4, color: "#fff", stroke: "#000" }); ctx.restore(); }
+  }
+
+  // ───────────────────────────── errors ─────────────────────────────
+  function fail(e) { GK.lastError = (e && e.stack) || String(e); console.error("[gk]", e); }
+  window.addEventListener("error", (ev) => { if (!GK.lastError) GK.lastError = ev.message + (ev.filename ? ` (${ev.filename.split("/").pop()}:${ev.lineno})` : ""); });
+  window.addEventListener("unhandledrejection", (ev) => { if (!GK.lastError) GK.lastError = "unhandled rejection: " + ((ev.reason && ev.reason.stack) || String(ev.reason)); });
+  function drawError() {
+    const m = mainCtx; m.setTransform(dpr, 0, 0, dpr, 0, 0);
+    m.fillStyle = "rgba(180,0,0,0.92)"; m.beginPath(); m.roundRect(10, 10, viewW - 20, 110, 8); m.fill();
+    m.font = "bold 16px ui-monospace, Menlo, monospace"; m.fillStyle = "#fff"; m.textAlign = "left"; m.textBaseline = "top";
+    const msg = typeof opts.errorMessage === "function" ? opts.errorMessage(GK.lastError) : opts.errorMessage || "Uh oh — the game hit a bug. Tell Uncle Cory:";
+    m.fillText(String(msg), 22, 20);
+    m.font = "13px ui-monospace, Menlo, monospace";
+    String(GK.lastError).split("\n").slice(0, 4).forEach((l, i) => m.fillText(l.slice(0, 140), 22, 44 + i * 17));
+  }
+
+  // ───────────────────────────── main loop ─────────────────────────────
+  // stepOnce() is one fixed simulation step; render() paints. rAF runs both until the first advanceTime() call sets
+  // `driven`, after which rAF only renders and the test harness owns simulation time (§4.1). Under ?arcade=1 the loop starts
+  // driven, so nothing steps before the gate's first advanceTime and a run never depends on how long the page took to load.
+  let last = 0, acc = 0, paused = false, driven = GK.params.arcade;
+  Object.defineProperty(GK, "paused", { get: () => paused });
+  function stepOnce() {
+    GK.taps = touchQueue.splice(0);
+    let dt = STEP;
+    if (hitstopN > 0) { hitstopN--; dt = 0; } else if (slowLeft > 0) { dt = STEP * slowScale; slowLeft -= dt; if (slowLeft <= 0) slowScale = 1; }
+    GK.dt = dt; sceneT += dt; GK.stats.time += dt; GK.stats.frames++;
+    if (!(trans && !trans.switched)) { try { if (current && current.update) current.update(dt); } catch (e) { fail(e); } }
+    try { tickFx(dt); } catch (e) { fail(e); }
+    tickScreen(STEP); tickTransition(STEP);
+    GK.key._tick(); GK.p1._tick(); GK.p2._tick(); GK.pointer.justDown = false; GK.pointer.justUp = false;
+  }
+  function render() {
+    const m = mainCtx, W = GK.width, H = GK.height, px = isPixel();
+    m.setTransform(dpr, 0, 0, dpr, 0, 0); m.globalAlpha = 1; m.globalCompositeOperation = "source-over";
+    const lb = K2 ? (theme.letterbox !== undefined ? theme.letterbox : theme.palette.shade) : opts.letterbox;
+    if (typeof lb === "function") { m.save(); try { lb(m, viewW, viewH); } catch (e) { fail(e); } m.restore(); } else { m.fillStyle = lb || "#000"; m.fillRect(0, 0, viewW, viewH); }
+    const [sx, sy] = shakeOffset();
+    if (px) { ctx = bufCtx; baseT = [1, 0, 0, 1, Math.round(sx), Math.round(sy)]; tgt = { ox: 0, oy: 0, w: W, h: H }; ctx.save(); ctx.setTransform(...baseT); ctx.imageSmoothingEnabled = false; }
+    else { ctx = m; ctx.save(); ctx.beginPath(); ctx.rect(offX, offY, W * scale, H * scale); ctx.clip();
+      baseT = [dpr * scale, 0, 0, dpr * scale, dpr * (offX + sx * scale), dpr * (offY + sy * scale)]; ctx.setTransform(...baseT);
+      tgt = { ox: dpr * offX, oy: dpr * offY, w: dpr * W * scale, h: dpr * H * scale }; if (K2 && theme.pixelated) ctx.imageSmoothingEnabled = false; }
+    ctx.fillStyle = (K2 ? theme.palette.bg : opts.bg) || "#111827"; ctx.fillRect(0, 0, W, H);
+    ctx.save();
+    const cam = GK.cam; if (cam.zoom !== 1 || cam.rot) { ctx.translate(W / 2, H / 2); ctx.rotate(cam.rot || 0); ctx.scale(cam.zoom || 1, cam.zoom || 1); ctx.translate(-W / 2, -H / 2); }
+    ctx.translate(-Math.round(cam.x), -Math.round(cam.y));
+    try { if (current && current.draw) current.draw(ctx); } catch (e) { fail(e); }
+    drawFx(); ctx.restore();
+    try { if (current && current.drawHud) current.drawHud(ctx); } catch (e) { fail(e); }
+    if (flashFx && flashFx.color) withView(() => { ctx.globalAlpha = GK.clamp(flashFx.t / flashFx.max, 0, 1); ctx.fillStyle = flashFx.color; ctx.fillRect(0, 0, W, H); });
+    drawBanners(); drawTransition();
+    if (!K2) {
+      drawControls();
+      if (paused) { GK.rect(0, 0, W, H, "rgba(0,0,0,0.5)"); GK.text("PAUSED", W / 2, H / 2, { size: 48, stroke: "#000" }); }
+      ctx.restore(); applyPost();
+    } else {
+      ctx.restore();
+      if (px) { m.setTransform(dpr, 0, 0, dpr, 0, 0); m.imageSmoothingEnabled = false; m.drawImage(buf, offX, offY, W * scale, H * scale); ctx = bufCtx; }
+      applyPost(); drawControls();
+    }
+    if (GK.lastError) drawError();
+    GK.stats.renders++; GK.ready = true;
+  }
+  function frame(now) {
+    requestAnimationFrame(frame);
+    if (!last) last = now; let dt = Math.min((now - last) / 1000, 0.1); last = now;
+    if (!driven) {
+      if (paused) dt = 0;
+      pollPads();
+      acc += dt; let steps = 0;
+      while (acc >= STEP && steps < 4) { stepOnce(); acc -= STEP; steps++; }
+      if (steps === 0) { GK.taps = []; }
+    }
+    try { render(); } catch (e) { fail(e); }
+  }
+
+  // ───────────────────────────── test hooks (§3.1) ─────────────────────────────
+  function installHooks(o) {
+    // the game's own callbacks may throw: that becomes `error` in the state (the gate reads it), never a dead hook
+    const safe = (fn, d) => { try { const v = fn(); return v ?? d; } catch (e) { fail(e); return d; } };
+    window.render_game_to_text ??= () => { const extra = o.textState ? safe(o.textState, {}) : {};
+      return JSON.stringify({ screen: GK.scene === "gameover" ? "over" : GK.scene,
+        stage: String(safe(() => o.stage?.(), GK.scene)), focus: safe(() => o.focus?.(), null),
+        t: GK.stats.time, frames: GK.stats.frames, score: safe(() => o.score?.(), GK.score ?? 0), best: GK.getBest(),
+        inputs: GK.stats.inputs, entities: safe(() => o.entities?.(), 0), ...extra, error: GK.lastError }); };
+    window.advanceTime ??= (ms) => { driven = true; const n = Math.max(1, Math.round(ms / 1000 / STEP));
+      const t0 = performance.now(); for (let i = 0; i < n; i++) { pollPads(); stepOnce(); } GK.stats.stepMs = (performance.now() - t0) / n;
+      try { render(); } catch (e) { fail(e); } return window.render_game_to_text(); };
+    window.__arcade ??= { v: 2, lane: "2d", engine: "gk", get ready() { return GK.ready; }, get frames() { return GK.stats.frames; },
+      get error() { return GK.lastError; }, get stepMs() { return GK.stats.stepMs; },
+      renderInfo: () => ({ dpr, particles: GK.particleCount(), view: GK.view.mode }),
+      viewRect: () => GK.viewRect(), controlRects: () => GK.controlRects(),
+      focusScreen: () => { const f = o.focus?.(); if (!f || typeof f.x !== "number" || typeof f.y !== "number") return null;
+        const z = GK.cam.zoom || 1, vx = (f.x - GK.cam.x - GK.width / 2) * z + GK.width / 2, vy = (f.y - GK.cam.y - GK.height / 2) * z + GK.height / 2;
+        return { x: offX + vx * scale, y: offY + vy * scale }; },
+      audio: () => GK.audioState(), cmd: (n, a) => (o.commands?.[n] ?? (n === "die" ? () => GK.gameOver({}) : null))?.(a) };
+  }
+
+  // ───────────────────────────── start ─────────────────────────────
+  const req = (cond, msg) => { if (!cond) throw new Error("kit 2: " + msg); };
+  function validateKit2(o) {
+    req(o.theme && typeof o.theme === "object", "theme is required — decide the art direction");
+    const t = o.theme;
+    req(t.palette && typeof t.palette === "object", "theme.palette is required — decide the art direction");
+    for (const k of ["bg", "ink", "accent", "good", "bad", "gold", "shade"]) req(typeof t.palette[k] === "string", `theme.palette.${k} is required — decide the art direction`);
+    req(t.font && t.font.display && t.font.ui, "theme.font {display, ui} is required — decide the art direction");
+    req(!(t.sound && t.sound.preset) && typeof o.sound !== "string", "sound presets (chip soft arcade toy) are kit 1 only — define every sound with GK.sfx.def");
+    const c = typeof o.controls === "object" && o.controls ? o.controls : { layout: o.controls || "dpad+ab" };
+    if (typeof c.skin === "string") throw new Error(`kit 2: controls.skin must be a function (ctx, btn, on) — the string '${c.skin}' is a kit 1 skin`);
+    req(["tap", "none"].includes(c.layout) || typeof c.skin === "function", "controls.skin must be a function (ctx, btn, on) — the game draws its own buttons");
+    req(o.scenes && o.scenes.title && o.scenes.gameover, "register your own 'title' and 'gameover' scenes (kit 2 has no shared screens)");
+    const v = o.view || {};
+    req(!v.mode || ["fit", "expand", "pixel"].includes(v.mode), `view.mode '${v.mode}' — use fit, expand or pixel`);
+  }
+  GK.start = (o) => {
+    if (o.kit === 2) validateKit2(o);
+    opts = o; GK.opts = o; K2 = o.kit === 2; GK.kit = K2 ? 2 : 1; theme = K2 ? o.theme : null; GK.theme = theme;
+    const v = o.view || {}, portrait = (v.orient || o.orient) === "portrait";
+    GK.view = { mode: v.mode || "fit", width: v.width || o.width || (portrait ? 450 : 800), height: v.height || o.height || (portrait ? 800 : 450),
+                maxAspect: v.maxAspect ?? 2.4, orient: v.orient || o.orient || ((v.width || o.width || 800) >= (v.height || o.height || 450) ? "landscape" : "portrait") };
+    GK.width = GK.view.width; GK.height = GK.view.height;
+    if (K2) { delete GK.titleScene; delete GK.gameOverScene; delete GK.banner; if (theme.sound && theme.sound.seed !== undefined) soundRng = mulberry32(theme.sound.seed); }
+    document.title = o.title || document.title;
+    canvas = document.getElementById("game") || document.body.appendChild(Object.assign(document.createElement("canvas"), { id: "game" }));
+    mainCtx = ctx = canvas.getContext("2d");
+    if (GK.view.mode === "pixel") { buf = document.createElement("canvas"); buf.width = GK.width; buf.height = GK.height; bufCtx = ctx = buf.getContext("2d"); bufCtx.imageSmoothingEnabled = false; }
+    const c = typeof o.controls === "object" && o.controls ? o.controls : { layout: o.controls };
+    Object.assign(vc, { layout: c.layout || "dpad+ab", skin: c.skin ?? null, labels: c.labels || {}, icons: c.icons || {}, floating: !!c.floating,
+                        opacity: c.opacity ?? (K2 ? 0.4 : 0.55), size: c.size ?? 1, zoneSpecs: c.zones || [], space: K2 ? "css" : "game" });
+    if (!K2) buildControls();
+    vc.visible = GK.isTouch && vc.layout !== "none";
+    scenes = K2 ? Object.assign({}, o.scenes) : Object.assign({ title: defaultTitle(), gameover: defaultGameOver() }, o.scenes || {});
+    for (const n in scenes) if (scenes[n] && scenes[n].drawHud === undefined && scenes[n].hud) scenes[n].drawHud = scenes[n].hud;
+    if (K2) { document.body.dataset.kit = "2"; const rs = document.documentElement.style; rs.setProperty("--gk-bg", theme.palette.bg); rs.setProperty("--gk-ink", theme.palette.ink);
+      rs.setProperty("--gk-font", typeof theme.font.display === "string" ? theme.font.display : GK.fonts.chunky); }
+    resize(); window.addEventListener("resize", resize); window.addEventListener("orientationchange", () => setTimeout(resize, 100));
+    window.addEventListener("keydown", keyDown); window.addEventListener("keyup", keyUp);
+    canvas.addEventListener("pointerdown", (e) => { canvas.setPointerCapture && canvas.setPointerCapture(e.pointerId); pointerDown(e.pointerId, e.clientX, e.clientY, e.pointerType === "touch"); e.preventDefault(); });
+    canvas.addEventListener("pointermove", (e) => { pointerMove(e.pointerId, e.clientX, e.clientY); e.preventDefault(); });
+    for (const ev of ["pointerup", "pointercancel"]) canvas.addEventListener(ev, (e) => { pointerUp(e.pointerId); e.preventDefault(); });
+    canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+    document.addEventListener("visibilitychange", () => { paused = document.hidden && !!o.pauseOnHide; if (document.hidden) { GK.key._clear(); GK.p1._clear(); GK.p2._clear(); } });
+    // gesture guards (iOS): no double-tap zoom, no pull-to-refresh, no pinch
+    document.addEventListener("touchmove", (e) => { if (e.target === canvas) e.preventDefault(); }, { passive: false });
+    document.addEventListener("gesturestart", (e) => e.preventDefault());
+    if (GK.params.arcade) ensureAudio();
+    window.GK = GK;
+    installHooks(o);
+    GK.go(o.start || "title");
+    requestAnimationFrame(frame);
+  };
+  window.GK = GK;
+})();
+
+</script>
+<script>
+// Skim Shot — a game by Cory · look "Mirror-Sand Postcard" (storybook) · genre tap-2d (a flinger at heart) · climax transformation
+// Aerial view of the beach at the house: dunes left, ocean right. A SkimShot bungee is staked in the dry sand; pull the
+// orange handle down the beach, let go, and the rider is slung up the shore onto the thin film the last wave left.
+
+// ── STRUCTURE ──
+const P = ["#f0dfb8", "#3aa7b8", "#ff7a1a", "#1d3557", "#ffc93c"];   // sand · ocean · handle orange · bungee navy · umbrella gold
+const FONT_FAMILY = "Pacifico", FONT_URL = "../../vendor/fonts/pacifico/pacifico-latin-400.woff2";
+const GOD = GK.params.god, SHORE = 282, ANCHOR = { x: 200, y: 0 }, REST_Y = 150, PULL_MAX = 380, PX_PER_FT = 12;
+const FILM_X0 = 120, CELL = 4, CELLS = Math.ceil((SHORE - FILM_X0) / CELL);
+const DIFFS = [
+  { id: "easy",   name: "Easy",   cyc: 7.0, dry: 4.6, kids: 0, glass: 0.10 },
+  { id: "medium", name: "Medium", cyc: 5.6, dry: 3.4, kids: 2, glass: 0.14 },
+  { id: "hard",   name: "Hard",   cyc: 4.6, dry: 2.4, kids: 4, glass: 0.18 },
+];
+const STAGES = ["Morning Glass", "Midday Chop", "Golden Hour"];
+const SUITS = [["#ff7a1a", "#1d3557"], ["#3aa7b8", "#ffffff"], ["#ffc93c", "#1d3557"], ["#e63946", "#ffffff"], ["#7b2cbf", "#ffc93c"]];
+const SKINS = ["#f1c9a5", "#c68642", "#8d5524", "#ffdbac"];
+const BOARDS = ["sunset", "wave", "stripe", "bask"];
+const ATTEMPTS = 3;
+let diff = 0, suit = 0, skin = 0, board = 0;                  // the chosen look, saved between plays
+let t = 0, phase = "pull", pull = 0, pulling = false, pullStartY = 0, pullTick = 0, attempt = 1, results = [], feet = 0, bestFt = 0;
+let rider, handle, obstacles = [], bands = new Set(), covered = new Float32Array(CELLS).fill(-99), lastWave = -1, surf = { kind: "dry", f: 0 };
+let doneT = 0, doneMsg = "", song, spray, titleT = 0, wipe = null, sceneT = 0, hissT = 0, wrackX = SHORE, wrackLast = 0, banner = null, ftPop = 0, trail = null;
+const glassOff = () => attempt === ATTEMPTS;   // ── CLIMAX (polish layer): Golden Hour is the Glass-Off — the whole swash turns to glass
+let entry = { ini: ["A", "A", "A"], slot: 0, active: false }, boardRows = [];
+const slingEl = document.getElementById("sling");
+let lbGrad = null, lbW = 0;
+const BOARD_KEY = "skim-shot-board", LOOK_KEY = "skim-shot-look";
+const store = { get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} } };
+function loadLook() { const l = store.get(LOOK_KEY) || {}; diff = l.diff ?? 0; suit = l.suit ?? 0; skin = l.skin ?? 0; board = l.board ?? 0; if (l.ini) entry.ini = l.ini; }
+function saveLook() { store.set(LOOK_KEY, { diff, suit, skin, board, ini: entry.ini }); }
+function loadBoard() { boardRows = (store.get(BOARD_KEY) || []).slice(0, 5); }
+
+// The swash: reach(t) is the water's edge (x). Each wave rushes in, then recedes; the sand it covered keeps a film that dries.
+const D = () => DIFFS[diff];
+function waveAmp(i) { return 55 + 80 * GK.noise1(i * 1.71 + 0.31); }
+function reach(time) {
+  const cyc = D().cyc, i = Math.floor(time / cyc), p = (time - i * cyc) / cyc, amp = waveAmp(i);
+  let s = 0;
+  if (p < 0.16) s = GK.ease.cubicOut(p / 0.16);
+  else if (p < 0.52) s = 1 - GK.ease.quadIn((p - 0.16) / 0.36);
+  return SHORE - amp * s;
+}
+const wob = (y, time) => 9 * Math.sin(y / 70 + time * 1.4) + 4 * Math.sin(y / 23 - time * 2.1);
+function updateWater(dt) {
+  t += dt;
+  const r = reach(t), i = Math.floor(t / D().cyc);
+  if (i !== lastWave) { lastWave = i; wrackLast = wrackX; wrackX = SHORE; if (phase !== "title") GK.sfx("wave"); }
+  if (r < wrackX) wrackX = r;
+  const c0 = Math.max(0, Math.floor((r - FILM_X0) / CELL));
+  for (let c = c0; c < CELLS; c++) covered[c] = t;
+}
+function filmAt(x) { const c = Math.floor((x - FILM_X0) / CELL); if (c < 0 || c >= CELLS) return 0; return GK.clamp(1 - (t - covered[c]) / (D().dry * (glassOff() ? 1.9 : 1)), 0, 1); }
+function surfaceAt(x, y) {
+  const r = reach(t) + wob(y, t), xe = x - wob(y, t);
+  if (x > r) { const depth = x - r; return depth > 42 ? { kind: "deep", f: 1 } : { kind: "shallow", f: 1 }; }
+  const f = filmAt(xe);
+  if (glassOff() && f > D().glass * 0.5) return { kind: "film", f: 0.5 };
+  return f > D().glass ? { kind: "film", f } : { kind: "dry", f };
+}
+
+function resetAttempt() {
+  phase = "pull"; pull = 0; pulling = false; feet = 0; wipe = null; surf = { kind: "dry", f: 0 };
+  handle = { x: ANCHOR.x + 14, y: REST_Y };
+  rider = { x: handle.x + 22, y: handle.y + 26, w: 0, h: 0, vy: 0, sx: 1, sy: 1, rot: 0, spin: 0 };
+  if (trail) { trail.stop(); trail = null; }
+  if (glassOff()) { banner = { t: 0, text: "Glass-Off!" }; if (song) song.intensity(1); } else if (song) song.intensity(0.55);
+  obstacles = []; bands.clear();
+  GK.cam.x = 0; GK.cam.y = handle.y - GK.height * 0.5;
+}
+function fling() {
+  pulling = false; if (pull < 0.08) { pull = 0; return; }
+  phase = "run"; rider.vy = -(260 + pull * 760); GK.sfx("release"); GK.shake(4, 0.15); GK.cam.zoom = 1.07;
+  GK.burst(rider.x, rider.y + 8, { count: 14, color: GK.shade(P[0], -0.25), speed: 120, life: 0.5, size: 4, gravity: 0, angle: Math.PI / 2, spread: 0.9 });
+}
+function spawnBand(b) {                                                  // obstacles for the 300 px band b (b ≤ -1), deterministic per band
+  bands.add(b);
+  const n = D().kids + (b < -3 ? 1 : 0);
+  for (let k = 0; k < n; k++) {
+    const h1 = GK.noise2(b * 3.1, k * 7.7), h2 = GK.noise2(k * 5.3, b * 2.9), h3 = GK.noise2(b + k, 42);
+    const kind = h3 < 0.55 ? "kid" : h3 < 0.8 ? "castle" : "crab";
+    obstacles.push({ kind, x: 175 + h1 * 150, y: b * 300 + h2 * 280, r: kind === "castle" ? 15 : 12, ph: h1 * 6.3, sw: kind === "kid" ? 40 : kind === "crab" ? 24 : 0 });
+  }
+}
+function endAttempt(msg, wiped) {
+  phase = "done"; doneT = 0; doneMsg = msg; feet = Math.max(0, Math.round(feet)); ftPop = 1; if (trail) { trail.stop(); trail = null; }
+  results.push({ ft: feet, wipe: wiped }); bestFt = Math.max(bestFt, feet); GK.score = bestFt;
+  if (wiped) { wipe = { t: 0 }; rider.spin = 9; GK.sfx("splash"); GK.shake(10, 0.35); GK.hitstop(0.08); GK.flash(GK.alpha("#ffffff", 0.35), 0.12);
+    GK.burst(rider.x, rider.y, { count: 30, color: "#ffffff", speed: 220, life: 0.7, size: 5, gravity: 0 }); }
+  else { GK.sfx("stop"); if (feet >= 60) GK.float("nice one!", rider.x, rider.y - 40, { color: P[4], size: 26 }); }
+}
+function stepPlay(dt) {
+  sceneT += dt; updateWater(dt);
+  if (rider.spin) { rider.rot += rider.spin * dt; rider.spin = Math.max(0, rider.spin - 12 * dt); }
+  if (GK.pointer.justDown) GK.stats.inputs.sling = (GK.stats.inputs.sling || 0) + 1;
+  if (phase === "pull") {
+    const pd = GK.pointer.down, py = GK.pointer.y + GK.cam.y;
+    if (pd && !pulling) { pulling = true; pullStartY = py; }
+    if (pd && pulling) pull = GK.clamp((py - pullStartY) / PULL_MAX, 0, 1);
+    if (GK.key.held("down") || GK.key.held("a")) { pulling = true; pull = Math.min(1, pull + dt * 0.85); }
+    if (pulling && (GK.pointer.justUp || GK.key.released("down") || GK.key.released("a"))) fling();
+    if (pulling && !pd && !GK.key.held("down") && !GK.key.held("a") && phase === "pull") fling();
+    const tick = Math.floor(pull * 10); if (tick !== pullTick) { pullTick = tick; if (tick > 0) GK.sfx("pull"); }
+    handle.y = REST_Y + pull * PULL_MAX; rider.x = GK.lerp(rider.x, handle.x + 22, 0.3); rider.y = handle.y + 26;
+    rider.sy = 1 + pull * 0.12; rider.sx = 1 - pull * 0.08;
+  } else if (phase === "run" || phase === "skim") {
+    const tx = GK.pointer.down ? GK.pointer.x + GK.cam.x : rider.x + (GK.key.held("right") - GK.key.held("left")) * 60;
+    rider.x = GK.approach(rider.x, GK.clamp(tx, 130, 420), 230 * dt);
+    rider.y += rider.vy * dt; rider.sx = 1; rider.sy = 1;
+    if (phase === "run" && rider.y < ANCHOR.y) { phase = "skim"; GK.sfx("drop"); trail = GK.trail(rider, { len: 18, width: 12, color: GK.alpha("#ffffff", 0.55), dy: 10 }); GK.burst(rider.x, rider.y, { count: 16, color: "#ffffff", speed: 140, life: 0.5, size: 4, gravity: 0 }); }
+    if (phase === "skim") {
+      surf = surfaceAt(rider.x, rider.y);
+      const speed = -rider.vy, drag = surf.kind === "film" ? (surf.f > 0.3 && surf.f < 0.75 ? 0.07 : 0.14) : surf.kind === "shallow" ? 0.55 : surf.kind === "deep" ? 1.7 : 3;
+      if (surf.kind === "dry" && speed > 90 && !GOD) return endAttempt("sand grab!", true);
+      rider.vy *= Math.max(0, 1 - drag * dt);
+      feet = Math.max(feet, -rider.y / PX_PER_FT);
+      const b = Math.floor(rider.y / 300) - 1; for (let k = b; k >= b - 2; k--) if (!bands.has(k)) spawnBand(k);
+      for (const o of obstacles) { const ox = o.x + Math.sin(t * 1.3 + o.ph) * o.sw; if (Math.hypot(ox - rider.x, o.y - rider.y) < o.r + 12) { if (!GOD) return endAttempt(o.kind === "kid" ? "watch out for the kids!" : o.kind === "crab" ? "crab attack!" : "sandcastle!", true); } }
+      if (speed < 32) return endAttempt(feet >= 100 ? "monster skim!" : feet >= 50 ? "smooth!" : "short one", false);
+      spray.x = rider.x; spray.y = rider.y + 14; spray.rate = surf.kind === "film" ? 40 + speed * 0.05 : 12;
+      hissT += dt; if (hissT > 0.16 && surf.kind !== "deep") { hissT = 0; GK.sfx("hiss"); }
+    }
+  } else if (phase === "done") {
+    doneT += dt; spray.rate = 0; rider.vy *= 0.9; rider.y += rider.vy * dt;
+    if (doneT > 1.6) {
+      if (attempt >= ATTEMPTS && !GOD) return GK.gameOver({ score: bestFt });
+      attempt = GOD ? Math.min(ATTEMPTS, attempt + 1) : attempt + 1; resetAttempt();
+      GK.go("play", { keep: true }, { fx: "wipe", time: 0.35, color: GK.alpha(P[0], 0.9) });
+    }
+  }
+  GK.cam.zoom = GK.lerp(GK.cam.zoom || 1, 1, 0.08); ftPop = Math.max(0, ftPop - dt * 2); if (banner) { banner.t += dt; if (banner.t > 2.2) banner = null; }
+  const camT = phase === "pull" ? handle.y - GK.height * 0.5 : rider.y - GK.height * 0.62;
+  GK.cam.y = GK.lerp(GK.cam.y, camT, phase === "skim" ? 0.16 : 0.1);
+}
+function qualifies(ft) { return ft > 0 && (boardRows.length < 5 || ft > boardRows[boardRows.length - 1].ft); }
+function commitEntry() {
+  boardRows.push({ ini: entry.ini.join(""), ft: bestFt, diff: D().id }); boardRows.sort((a, b) => b.ft - a.ft); boardRows = boardRows.slice(0, 5);
+  store.set(BOARD_KEY, boardRows); saveLook(); entry.active = false; GK.sfx("record");
+}
+function startSession() { attempt = 1; results = []; bestFt = 0; GK.score = 0; resetAttempt(); song.play(); GK.go("play", {}); }
+
+GK.loadFont(FONT_FAMILY, FONT_URL, { id: "face" }).then((face) => {
+  loadLook(); loadBoard();
+  const INK = P[3];
+  GK.sfx.def("pull", { wave: "tri", f0: 220, f1: 260, dur: 0.07, vol: 0.28 });
+  GK.sfx.def("release", { wave: "saw", f0: 900, f1: 180, dur: 0.35, vol: 0.4, filter: 1800 });
+  GK.sfx.def("drop", { noise: true, f0: 1800, f1: 600, dur: 0.22, vol: 0.35 });
+  GK.sfx.def("hiss", { noise: true, f0: 2400, f1: 2000, dur: 0.18, vol: 0.12 });
+  GK.sfx.def("wave", { noise: true, f0: 400, f1: 1600, dur: 1.1, vol: 0.18, attack: 0.5 });
+  GK.sfx.def("splash", { noise: true, f0: 1200, f1: 200, dur: 0.5, vol: 0.5 });
+  GK.sfx.def("stop", { wave: "sine", f0: 520, f1: 390, dur: 0.25, vol: 0.3 });
+  GK.sfx.def("record", { wave: "tri", f0: 660, dur: 0.6, vol: 0.4, arp: [0, 4, 7, 12, 16] });
+  GK.sfx.def("ui", { wave: "square", f0: 740, f1: 880, dur: 0.06, vol: 0.2 });
+  song = GK.song({ bpm: 92, swing: 0.1, vol: 0.8, tracks: {
+    lead: { inst: "pluck", vol: 0.28, notes: "E4 G4 A4 B4 | D5 - B4 A4 | G4 E4 G4 . | A4 B4 A4 G4 | E4 G4 A4 B4 | D5 - E5 D5 | B4 A4 G4 . | E4 - - ." },
+    pad:  { inst: "pad", vol: 0.16, notes: "E3+G3+B3 - - - | - - - - | C3+E3+G3 - - - | - - - - | A2+C3+E3 - - - | - - - - | B2+D3+F#3 - - - | - - - -" },
+    bass: { inst: "tri", vol: 0.3, notes: "E2 . . E2 | . . E2 . | C2 . . C2 | . . C2 . | A1 . . A1 | . . A1 . | B1 . . B1 | . . B1 ." },
+    bell: { inst: "bell", vol: 0.16, at: 0.9, notes: "E6 . . . | B5 . . . | G5 . . . | A5 . . . | E6 . . . | D6 . . . | B5 . . . | . . . ." },
+    drums: { pat: "k.h.s.h.k.hks.h.", vol: 0.35, at: 0.3 } } });
+
+  GK.start({
+    kit: 2, slug: "skim-shot", title: "Skim Shot",
+    view: { mode: "expand", width: 450, height: 800, orient: "portrait" },
+    // ── ART ──
+    theme: {
+      palette: { bg: P[0], ink: INK, accent: P[2], good: P[1], bad: "#e63946", gold: P[4], shade: GK.shade(P[0], -0.45) },
+      font: { display: face, ui: face, weight: 400 },
+      text: { stroke: GK.alpha(P[3], 0.9), strokeRatio: 0.12, shadow: { x: 0, y: 3, blur: 6, color: GK.alpha("#3b2a12", 0.45) } },
+      particles: "circle", sound: { seed: 11, reverb: 0.25 },
+      letterbox: (ctx, w, h) => {                                             // the desktop frame is the same beach, out of focus: dune sand to deep water
+        if (!lbGrad || lbW !== w) { lbW = w; lbGrad = ctx.createLinearGradient(0, 0, w, 0); lbGrad.addColorStop(0, "#c9ad74"); lbGrad.addColorStop(0.42, "#e6d3a4"); lbGrad.addColorStop(0.58, "#7fcbd2"); lbGrad.addColorStop(1, "#163a52"); }
+        ctx.fillStyle = lbGrad; ctx.fillRect(0, 0, w, h);
+        ctx.fillStyle = "rgba(255,255,255,0.10)"; for (let y = (GK.stats.time * 20) % 80; y < h; y += 80) ctx.fillRect(w * 0.55, y, w * 0.45, 3);
+        ctx.fillStyle = "rgba(59,42,18,0.16)"; ctx.fillRect(0, 0, w, h * 0.08); ctx.fillRect(0, h * 0.92, w, h * 0.08);
+      },
+    },
+    controls: { layout: "tap" },
+    // ── STRUCTURE ──
+    stage: () => String(attempt), focus: () => ({ x: Math.round(rider ? rider.x : 0), y: Math.round(rider ? rider.y : 0), pull: +pull.toFixed(2), cursor: { x: Math.round(GK.pointer.x), y: Math.round(GK.pointer.y) } }),
+    entities: () => obstacles.length + 1, score: () => bestFt,
+    textState: () => ({ phase, glassOff: glassOff(), feet: Math.round(feet), surface: surf.kind, film: +surf.f.toFixed(2), reach: Math.round(reach(t)), attempt, results: results.map((r) => r.ft), difficulty: D().id, entry: entry.active ? entry.ini.join("") : null }),
+    commands: { die: () => { if (phase !== "done") { feet = Math.max(feet, 0); endAttempt("wipeout", true); } attempt = ATTEMPTS; doneT = 99; GK.gameOver({ score: bestFt }); },
+                at: (s) => { attempt = GK.clamp(parseInt(s) || 1, 1, ATTEMPTS); results = []; bestFt = 0; resetAttempt(); GK.go("play", { keep: true }); } },
+    scenes: {
+      title: {
+        controls: false,
+        enter() { slingEl.hidden = true; phase = "title"; t = 0; lastWave = -1; covered.fill(-99); attempt = 1; resetAttempt(); phase = "title"; titleT = 0; GK.cam.y = -GK.height * 0.35; },
+        update(dt) {
+          titleT += dt; updateWater(dt); GK.cam.y = -GK.height * 0.35 + Math.sin(titleT * 0.4) * 12;
+          if (GK.pointer.justDown) { const hit = titleHit(GK.pointer.x, GK.pointer.y); if (hit) { hit(); GK.sfx("ui"); saveLook(); return; } }
+          if (GK.anyPressed()) { if (GK.params.at) { attempt = GK.clamp(parseInt(GK.params.at) || 1, 1, ATTEMPTS); results = []; bestFt = 0; resetAttempt(); song.play(); GK.go("play", { keep: true }); } else startSession(); }
+        },
+        draw: drawWorld, drawHud: drawTitle,
+      },
+      play: {
+        enter(d) { slingEl.hidden = false; sceneT = 0; phase = phase === "title" ? "pull" : phase; if (!d || !d.keep) resetAttempt(); GK.cam.x = 0; GK.cam.y = handle.y - GK.height * 0.5; spray =GK.emitter({ x: rider.x, y: rider.y, rate: 0, color: "#ffffff", colorEnd: GK.alpha(P[1], 0), size: [2, 5], life: 0.45, speed: 90, angle: Math.PI / 2, spread: 0.7, gravity: 0 }); },
+        update: stepPlay, draw: drawWorld, drawHud: drawPlayHud,
+      },
+      gameover: {
+        controls: false,
+        enter() { slingEl.hidden = true; sceneT = 0; entry.active = qualifies(bestFt); entry.slot = 0; },
+        update(dt) {
+          sceneT += dt; updateWater(dt);
+          if (!GK.canAccept()) return;
+          if (entry.active) {
+            const cyc = (d) => { const i = entry.slot, L = "ABCDEFGHIJKLMNOPQRSTUVWXYZ", k = (L.indexOf(entry.ini[i]) + d + 26) % 26; entry.ini[i] = L[k]; GK.sfx("ui"); };
+            if (GK.key.pressed("up")) cyc(1); if (GK.key.pressed("down")) cyc(-1);
+            if (GK.key.pressed("left")) entry.slot = (entry.slot + 2) % 3; if (GK.key.pressed("right")) entry.slot = (entry.slot + 1) % 3;
+            if (GK.pointer.justDown) { const h = entryHit(GK.pointer.x, GK.pointer.y); if (h) { h(cyc); return; } }
+            if (GK.key.pressed("a") || GK.key.pressed("start")) { commitEntry(); startSession(); }
+            return;
+          }
+          if (GK.anyPressed()) startSession();
+        },
+        draw: drawWorld, drawHud: drawOver,
+      },
+    },
+  });
+  GK.post({ tint: { color: "#ffe9c9", alpha: 0.18 } });
+
+  // ── ART ──
+  const art = {}; for (const n of ["house", "umbrellas", "family"]) { const im = new Image(); im.src = `art/${n}.jpg`; im.onload = () => { art[n] = im; }; }
+  const sandTile = () => GK.layer(450, 400, (g, w, h) => {
+    g.fillStyle = P[0]; g.fillRect(0, 0, w, h);
+    for (let i = 0; i < 1400; i++) { const x = GK.noise2(i, 1) * w, y = GK.noise2(i, 2) * h, k = GK.noise2(i, 3); g.fillStyle = k < 0.5 ? GK.alpha("#b8955c", 0.35) : GK.alpha("#ffffff", 0.5); g.fillRect(x, y, 1.5, 1.5); }
+    for (let i = 0; i < 26; i++) { const x = 90 + GK.noise2(i, 9) * 40, y = GK.noise2(i, 8) * h; g.fillStyle = GK.alpha("#c9a86a", 0.4); g.beginPath(); g.ellipse(x, y, 3, 6, 0.3, 0, 6.3); g.fill(); }   // footprints down the dune path
+  });
+  const oatTile = () => GK.layer(104, 400, (g, w, h) => {
+    g.fillStyle = "#d9c48f"; g.fillRect(0, 0, w, h);
+    g.fillStyle = "#b08a5a"; g.fillRect(0, 0, 44, h);                                                   // the boardwalk planks
+    for (let y = 0; y < h; y += 9) { g.fillStyle = y % 18 ? "#a67e4f" : "#bf9662"; g.fillRect(2, y, 40, 7); }
+    g.fillStyle = "#e8dcc3"; g.fillRect(0, 0, 3, h); g.fillRect(41, 0, 3, h);                          // white rails
+    for (let i = 0; i < 40; i++) { const x = 48 + GK.noise2(i, 21) * (w - 56), y = GK.noise2(i, 22) * h, s = 10 + GK.noise2(i, 23) * 14;
+      for (let b = -2; b <= 2; b++) { g.strokeStyle = b % 2 ? "#8a9a4a" : "#b9a65a"; g.lineWidth = 1.5; g.beginPath(); g.moveTo(x, y + 6); g.quadraticCurveTo(x + b * 4, y - s * 0.5, x + b * 9, y - s); g.stroke();
+        g.fillStyle = "#d9b96a"; g.beginPath(); g.ellipse(x + b * 9, y - s, 2, 5, b * 0.3, 0, 6.3); g.fill(); } }
+  });
+  function drawSand(ctx, y0, y1) {
+    const st = sandTile(), ot = oatTile();
+    for (let y = Math.floor(y0 / 400) * 400; y < y1; y += 400) { ctx.drawImage(st, 0, y); ctx.drawImage(ot, 0, y); }
+    const g = GK.grad(100, 0, 150, 0, [GK.alpha("#c9ad74", 0.6), GK.alpha("#c9ad74", 0)]); ctx.fillStyle = g; ctx.fillRect(100, y0, 50, y1 - y0);
+  }
+  function drawWetFilm(ctx, y0, y1) {                                       // the Signature visual: mirror sand — a sky sheen that dries in real time
+    for (let c = 0; c < CELLS; c++) {
+      const f = filmAt(FILM_X0 + c * CELL + 2); if (f <= 0) continue;
+      ctx.fillStyle = GK.alpha("#7a5a2e", 0.38 * f); ctx.fillRect(FILM_X0 + c * CELL, y0, CELL + 0.5, y1 - y0);
+    }
+    for (let c = 0; c < CELLS; c++) {
+      const f = filmAt(FILM_X0 + c * CELL + 2); if (f < 0.12) continue;
+      const glint = glassOff() ? 0.55 + 0.1 * Math.sin(t * 3 + c * 0.4) : Math.sin(f * Math.PI) * 0.55;   // the thin-film window shines brightest; Glass-Off is all mirror
+      ctx.fillStyle = GK.alpha(glassOff() ? "#ffe3b8" : "#dff4ff", glint); ctx.fillRect(FILM_X0 + c * CELL, y0, CELL + 0.5, y1 - y0);
+    }
+    if (glassOff() && rider) { ctx.fillStyle = GK.radial(rider.x, rider.y - 60, 4, 130, [[0, GK.alpha("#fff4d6", 0.7)], [1, GK.alpha("#ffb347", 0)]]); ctx.fillRect(FILM_X0, rider.y - 200, SHORE - FILM_X0 + 40, 300); }   // the low sun's streak on the glass
+    if (wrackLast < SHORE - 8) for (let y = Math.floor(y0 / 14) * 14; y < y1; y += 14) { const wx = wrackLast + wob(y, t) - 3 + GK.noise1(y * 0.7) * 6; GK.rect(wx, y + GK.noise1(y) * 6, 2 + GK.noise1(y + 5) * 3, 1.5, GK.alpha("#6b4a22", 0.45)); }   // the wrack line the last wave left
+    for (let y = Math.floor(y0 / 90) * 90; y < y1; y += 90) {                 // cloud reflections drifting on the sheen
+      const cx = 200 + GK.noise1(y * 0.013) * 70, f = filmAt(cx); if (f < 0.15) continue;
+      ctx.fillStyle = GK.alpha("#ffffff", Math.sin(f * Math.PI) * 0.35); ctx.beginPath(); ctx.ellipse(cx + Math.sin(t * 0.3 + y) * 6, y + 40, 34, 9, 0, 0, 6.3); ctx.fill();
+    }
+  }
+  function drawWater(ctx, y0, y1) {
+    const r = reach(t);
+    ctx.beginPath(); ctx.moveTo(460, y0 - 20);
+    for (let y = y0 - 20; y <= y1 + 20; y += 14) ctx.lineTo(r + wob(y, t), y);
+    ctx.lineTo(460, y1 + 20); ctx.closePath();
+    ctx.fillStyle = GK.grad(r, 0, 450, 0, [[0, GK.alpha("#9fe3ea", 0.85)], [0.15, P[1]], [0.7, GK.shade(P[1], -0.25)], [1, P[3]]]); ctx.fill();
+    ctx.save(); ctx.clip();
+    for (let k = 0; k < 6; k++) {                                            // crests rolling in from the right
+      const x = 450 - ((t * 38 + k * 47) % 190); ctx.strokeStyle = GK.alpha("#ffffff", 0.35 - k * 0.04); ctx.lineWidth = 2 + k * 0.4; ctx.beginPath();
+      for (let y = y0 - 20; y <= y1 + 20; y += 12) { const xx = x + Math.sin(y / 40 + t * 2 + k) * 5; y === y0 - 20 ? ctx.moveTo(xx, y) : ctx.lineTo(xx, y); } ctx.stroke(); }
+    ctx.restore();
+    ctx.strokeStyle = GK.alpha("#ffffff", 0.9); ctx.lineWidth = 5; ctx.lineCap = "round"; ctx.beginPath();  // the foam line
+    for (let y = y0 - 20; y <= y1 + 20; y += 10) { const xx = r + wob(y, t) + Math.sin(y * 0.5 + t * 6) * 1.5; y === y0 - 20 ? ctx.moveTo(xx, y) : ctx.lineTo(xx, y); } ctx.stroke();
+    for (let y = Math.floor(y0 / 60) * 60; y < y1; y += 60) { const xx = r + wob(y, t) + 6 + GK.noise1(y) * 18; GK.circle(xx, y + 20, 2 + GK.noise1(y + 3) * 3, GK.alpha("#ffffff", 0.7)); }
+  }
+  function drawBeachStuff(ctx, y0, y1) {                                     // the beach house's BASK umbrellas and chairs on the dry sand, distance flags at the dune
+    for (let y = Math.floor(y0 / 250) * 250; y < y1; y += 250) {
+      const n = GK.noise1(y * 0.01), ux = 108 + n * 45, uy = y + 60 + GK.noise1(y * 0.02 + 9) * 120;
+      if (y < 100) {
+        ctx.fillStyle = GK.alpha("#3b2a12", 0.18); ctx.beginPath(); ctx.ellipse(ux + 8, uy + 10, 30, 24, 0, 0, 6.3); ctx.fill();
+        for (let c = 0; c < 2; c++) { const cx = ux + 18 + c * 24, cy = uy + 30; GK.rect(cx - 8, cy - 7, 16, 14, P[3], 3); GK.rect(cx - 9, cy - 8, 18, 3, P[2], 1); GK.rect(cx - 9, cy + 5, 18, 3, P[2], 1); }
+        ctx.fillStyle = GK.radial(ux - 6, uy - 6, 2, 30, [[0, "#ffe27a"], [0.7, P[4]], [1, "#e0a520"]]); ctx.beginPath(); ctx.arc(ux, uy, 28, 0, 6.3); ctx.fill();
+        for (let k = 0; k < 8; k++) { ctx.strokeStyle = GK.alpha("#c98a10", 0.5); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(ux, uy); ctx.lineTo(ux + Math.cos(k * 0.785) * 28, uy + Math.sin(k * 0.785) * 28); ctx.stroke(); }
+        GK.circle(ux, uy, 4, "#fff6c8");
+      }
+    }
+    if (y1 > 300 && y0 < 470) {                                                 // the beach house at the top of the boardwalk, from above: grey hip roof, seafoam walls, white rails
+      GK.rect(0, 306, 104, 160, "#8fd3cf", 6); GK.rect(0, 300, 104, 8, "#f4f4f4"); GK.rect(0, 464, 104, 8, "#f4f4f4"); GK.rect(96, 300, 8, 172, "#f4f4f4");
+      GK.rect(-4, 322, 104, 128, "#5d5a56", 10); GK.rect(6, 332, 84, 108, "#6e6a65", 8); GK.rect(46, 332, 4, 108, "#8a8681"); GK.rect(6, 384, 84, 3, "#8a8681");
+      GK.rect(38, 452, 6, 14, "#c8b58a"); GK.rect(60, 452, 6, 14, "#c8b58a"); }
+    for (let y = Math.floor(y0 / 300) * 300; y < y1; y += 300) if (y < 0) { const ft = Math.round(-y / PX_PER_FT); GK.rect(74, y - 1, 3, 26, "#ffffff"); GK.rect(77, y, 40, 14, P[2], 2); GK.text(ft + " ft", 97, y + 7, { size: 11, color: "#fff", stroke: null, shadow: null, font: "sans-serif", weight: 700 }); }
+  }
+  function drawObstacles(ctx) {
+    for (const o of obstacles) {
+      const ox = o.x + Math.sin(t * 1.3 + o.ph) * o.sw, oy = o.y;
+      ctx.fillStyle = GK.alpha("#3b2a12", 0.2); ctx.beginPath(); ctx.ellipse(ox + 4, oy + 5, o.r + 2, o.r * 0.8, 0, 0, 6.3); ctx.fill();
+      if (o.kind === "castle") { GK.rect(ox - 14, oy - 10, 28, 22, "#d9b36c", 3); GK.rect(ox - 8, oy - 14, 16, 10, "#c69c5a", 2); GK.circle(ox, oy - 12, 6, "#e6c78a"); GK.rect(ox - 1, oy - 24, 2, 12, P[3]); GK.rect(ox + 1, oy - 24, 8, 5, "#e63946"); }
+      else if (o.kind === "crab") { ctx.save(); ctx.translate(ox, oy); GK.circle(0, 0, 9, "#e63946"); GK.circle(-9, 2, 4, "#c92a37"); GK.circle(9, 2, 4, "#c92a37"); GK.circle(-4, -5, 2, "#fff"); GK.circle(4, -5, 2, "#fff"); GK.circle(-4, -5, 1, "#000"); GK.circle(4, -5, 1, "#000"); ctx.restore(); }
+      else { const dir = Math.cos(t * 1.3 + o.ph); ctx.save(); ctx.translate(ox, oy); GK.circle(0, 6, 10, ["#4cc9f0", "#f72585", "#80ed99", "#ffd166"][Math.floor(o.ph) % 4]); GK.circle(-8 * dir, 4, 3, "#f1c9a5"); GK.circle(8 * dir, 4, 3, "#f1c9a5"); GK.circle(0, -2, 8, "#f1c9a5"); GK.circle(0, -4, 7, "#5a3a1a"); ctx.restore(); }
+    }
+  }
+  function drawBoard(ctx, x, y, rot, scale = 1) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(scale, scale);
+    const k = BOARDS[board], base = k === "sunset" ? GK.grad(0, -30, 0, 30, [P[2], P[4]]) : k === "wave" ? GK.grad(-16, 0, 16, 0, ["#9fe3ea", P[1]]) : k === "stripe" ? "#f4efe4" : P[3];
+    ctx.fillStyle = base; ctx.beginPath(); ctx.ellipse(0, 0, 15, 30, 0, 0, 6.3); ctx.fill();
+    if (k === "stripe") { ctx.fillStyle = "#e63946"; ctx.fillRect(-4, -28, 8, 56); ctx.fillStyle = P[3]; ctx.fillRect(-1, -28, 2, 56); }
+    if (k === "bask") { ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, 8, 0, 6.3); ctx.stroke(); ctx.beginPath(); ctx.moveTo(-6, -6); ctx.lineTo(6, 6); ctx.moveTo(-6, 6); ctx.lineTo(6, -6); ctx.stroke(); }
+    if (k === "wave") { ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.beginPath(); for (let i = -24; i <= 24; i += 2) ctx.lineTo(Math.sin(i * 0.4) * 5, i); ctx.stroke(); }
+    ctx.strokeStyle = GK.alpha("#fff", 0.6); ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(0, 0, 13, 28, 0, 0, 6.3); ctx.stroke();
+    ctx.restore();
+  }
+  function drawRider(ctx) {
+    const [suitA, suitB] = SUITS[suit], sk = SKINS[skin], onBoard = phase === "skim" || phase === "done";
+    if (surf.kind === "film" && onBoard) { ctx.save(); ctx.globalAlpha = 0.22 * surf.f; ctx.translate(rider.x, rider.y + 26); ctx.scale(1, -0.6); drawBoard(ctx, 0, 0, rider.rot); GK.circle(0, 0, 9, sk); ctx.restore(); }   // the rider's reflection on the mirror sand
+    ctx.fillStyle = GK.alpha("#3b2a12", 0.22); ctx.beginPath(); ctx.ellipse(rider.x + 5, rider.y + 6, 16, 22, 0, 0, 6.3); ctx.fill();
+    ctx.save(); ctx.translate(rider.x, rider.y); ctx.rotate(rider.rot); ctx.scale(rider.sx, rider.sy);
+    if (onBoard) drawBoard(ctx, 0, 0, 0.15);
+    else { drawBoard(ctx, 16, -4, 1.2, 0.8); }                                 // board under the arm while pulling and running
+    ctx.fillStyle = suitB; ctx.beginPath(); ctx.ellipse(0, 6, 10, 8, 0, 0, 6.3); ctx.fill();           // trunks
+    ctx.fillStyle = suitA; ctx.beginPath(); ctx.ellipse(0, -2, 12, 10, 0, 0, 6.3); ctx.fill();          // rashguard shoulders
+    const armL = onBoard ? [-16, 4] : [-10, -14], armR = onBoard ? [16, 6] : [12, -12];                // arms out for balance, or up on the handle
+    ctx.strokeStyle = sk; ctx.lineWidth = 5; ctx.lineCap = "round"; ctx.beginPath(); ctx.moveTo(-8, -2); ctx.lineTo(armL[0], armL[1]); ctx.moveTo(8, -2); ctx.lineTo(armR[0], armR[1]); ctx.stroke();
+    GK.circle(0, -4, 8, sk); GK.circle(0, -6, 7, "#4a2c17"); GK.circle(0, -3, 3, GK.alpha("#4a2c17", 0.9));   // head with hair from above
+    ctx.restore();
+  }
+  function drawRig(ctx) {
+    const hx = handle.x, hy = handle.y, ax = ANCHOR.x, ay = ANCHOR.y;
+    ctx.fillStyle = GK.alpha("#3b2a12", 0.25); ctx.beginPath(); ctx.ellipse(ax + 3, ay + 4, 12, 7, 0, 0, 6.3); ctx.fill();
+    if (phase === "pull" || phase === "title") {
+      const slack = phase === "title" ? 0 : (1 - pull) * 30;
+      ctx.strokeStyle = "#111a2b"; ctx.lineWidth = 4 + pull * 1.5; ctx.lineCap = "round"; ctx.beginPath(); ctx.moveTo(ax, ay);
+      ctx.quadraticCurveTo(ax + 10 + slack + Math.sin(t * 9) * (pull > 0.9 ? 1.5 : 0), (ay + hy) / 2, hx, hy); ctx.stroke();
+      ctx.strokeStyle = GK.alpha("#ffffff", 0.18); ctx.lineWidth = 1.2; ctx.stroke();
+    } else if (phase !== "done" || (wipe === null)) {                            // after release the cord snaps back and lies in a loose loop
+      ctx.strokeStyle = "#111a2b"; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.bezierCurveTo(ax + 40, ay + 60, ax - 20, ay + 110, ax + 24, ay + 130); ctx.stroke();
+      GK.rect(ax + 10, ay + 126, 30, 14, P[2], 6);
+    }
+    GK.rect(ax - 5, ay - 16, 10, 24, "#c8c8c8", 2); GK.rect(ax - 7, ay - 14, 14, 6, "#8d8d8d", 2);      // the sand anchor stake, buried in the dry sand
+    if (phase === "pull" || phase === "title") {
+      ctx.fillStyle = GK.alpha("#3b2a12", 0.25); ctx.beginPath(); ctx.ellipse(hx + 4, hy + 5, 20, 10, 0, 0, 6.3); ctx.fill();
+      ctx.fillStyle = GK.radial(hx - 4, hy - 4, 2, 24, [[0, "#ffb070"], [0.6, P[2]], [1, "#d85d05"]]); ctx.beginPath(); ctx.roundRect(hx - 18, hy - 8, 36, 16, 8); ctx.fill();
+      for (let k = -1; k <= 1; k++) GK.rect(hx + k * 9 - 1.5, hy - 5, 3, 10, GK.alpha("#7a2f00", 0.45), 1);
+    }
+  }
+  function drawWorld(ctx) {
+    const y0 = GK.cam.y - 40, y1 = GK.cam.y + GK.height + 40;
+    drawSand(ctx, y0, y1); drawWetFilm(ctx, y0, y1); drawWater(ctx, y0, y1); drawBeachStuff(ctx, y0, y1);
+    drawObstacles(ctx); drawRig(ctx); if (rider) drawRider(ctx);
+    const amb = ["#f4f1ea", "#fff3dc", "#ffd9a6"][attempt - 1] || "#fff3dc";                             // the light warms with each attempt: morning → golden hour
+    GK.light.begin(amb); if (rider) GK.light.add(rider.x, rider.y, 160, "#fff1c9"); GK.light.add(SHORE + 90, GK.cam.y + GK.height * 0.3, 260, "#dffbff"); GK.light.end();
+  }
+  const chips = [];
+  function chip(x, y, w, h, label, value, fn, color) { chips.push({ x, y, w, h, fn }); GK.rect(x, y, w, h, GK.alpha("#ffffff", 0.9), 12); GK.rect(x, y, w, h, GK.alpha(color || P[1], 0.18), 12);
+    GK.text(label, x + w / 2, y + 15, { size: 13, color: GK.alpha(P[3], 0.7), stroke: null, shadow: null, font: "sans-serif", weight: 700 }); GK.text(value, x + w / 2, y + h - 20, { size: 20, color: color || P[3], stroke: null, shadow: null }); }
+  function titleHit(x, y) { const c = chips.find((c) => x >= c.x && x <= c.x + c.w && y >= c.y && y <= c.y + c.h); return c && c.fn; }
+  function drawTitle() {
+    const W = GK.width, H = GK.height; chips.length = 0;
+    const pw = Math.min(300, W * 0.66), ph = pw * 0.75, px = W / 2 - pw / 2, py = H * 0.07;
+    GK.ctx().save(); GK.ctx().translate(px + pw / 2, py + ph / 2); GK.ctx().rotate(-0.05); GK.ctx().translate(-(px + pw / 2), -(py + ph / 2));
+    GK.rect(px - 10, py - 10, pw + 20, ph + 50, "#fffaf0", 4); GK.rect(px - 10, py - 10, pw + 20, ph + 50, GK.alpha("#3b2a12", 0.06), 4);
+    if (art.house) GK.img(art.house, px, py, pw, ph, { smooth: true }); else GK.rect(px, py, pw, ph, P[1]);
+    GK.text("our beach house", px + pw / 2, py + ph + 20, { size: 16, color: "#6b5236", stroke: null, shadow: null });
+    GK.ctx().restore();
+    const big = Math.min(74, W / 6.2);
+    GK.text("Skim Shot", W / 2, H * 0.47, { size: big, color: "#fff", gradient: ["#ffffff", "#ffe6c2"], wave: { amp: 3, freq: 0.6, speed: 2.5 } });
+    GK.text("a game by Cory", W / 2, H * 0.47 + big * 0.75, { size: big * 0.34, color: P[4] });
+    const cw = (W - 56) / 3, cy = H * 0.66;
+    chip(20, cy, cw, 60, "DIFFICULTY", D().name, () => { diff = (diff + 1) % DIFFS.length; }, diff === 0 ? "#2a9d8f" : diff === 1 ? P[2] : "#e63946");
+    chip(20 + cw + 8, cy, cw, 60, "RIDER", ["Orange", "Sea", "Sun", "Cherry", "Grape"][suit], () => { suit = (suit + 1) % SUITS.length; if (suit === 0) skin = (skin + 1) % SKINS.length; }, SUITS[suit][0]);
+    chip(20 + (cw + 8) * 2, cy, cw, 60, "BOARD", BOARDS[board], () => { board = (board + 1) % BOARDS.length; }, P[1]);
+    if (Math.floor(titleT * 2) % 2 === 0) GK.text(GK.isTouch ? "tap the sand to skim" : "space to skim", W / 2, cy + 100, { size: big * 0.36, color: "#fff" });
+    if (boardRows.length) GK.text("longest skim  " + boardRows[0].ini + "  " + boardRows[0].ft + " ft", W / 2, cy + 140, { size: 18, color: P[4] });
+    GK.vignette(0.4, "#5a3d1e");
+  }
+  function drawPlayHud() {
+    const W = GK.width, H = GK.height, a = GK.anchor("t", 0, 12);
+    slingEl.style.bottom = (GK.safeCss.bottom + 22) + "px"; slingEl.firstChild.textContent = phase === "pull" ? (pull > 0.05 ? "let go!" : GK.isTouch ? "⇣ drag down to pull the SkimShot" : "hold ↓ to pull, release to skim") : phase === "done" ? doneMsg : "⇠ steer ⇢";
+    GK.text(Math.round(feet) + " ft", W / 2, a.y + 28, { size: 44 * (1 + ftPop * 0.45), color: "#fff", gradient: ["#ffffff", "#ffe6c2"] });
+    if (banner) { const k = Math.min(1, banner.t * 3), fade = banner.t > 1.7 ? 1 - (banner.t - 1.7) * 2 : 1; GK.text(banner.text, W / 2, H * 0.3, { size: 58 * (0.6 + 0.4 * GK.ease.backOut(k)), color: GK.alpha("#fff4d6", fade), gradient: [GK.alpha("#ffffff", fade), GK.alpha("#ffc93c", fade)], wave: { amp: 3, freq: 0.5, speed: 3 } }); GK.text("the whole shore is a mirror", W / 2, H * 0.3 + 44, { size: 18, color: GK.alpha("#fff", fade) }); }
+    const l = GK.anchor("tl", 14, 14), r = GK.anchor("tr", 14, 14);
+    for (let i = 0; i < ATTEMPTS; i++) GK.circle(l.x + 10 + i * 22, l.y + 10, 7, i < attempt - 1 ? (results[i] && results[i].wipe ? "#e63946" : P[4]) : i === attempt - 1 ? P[2] : GK.alpha("#fff", 0.5));
+    GK.text(STAGES[attempt - 1], l.x, l.y + 36, { size: 15, align: "left", color: "#fff" });
+    GK.text("best " + Math.max(bestFt, GK.getBest()) + " ft", r.x, r.y + 10, { size: 16, align: "right", color: P[4] });
+    if (phase === "pull") {
+      const b = GK.anchor("b", 0, 34);
+      GK.rect(W / 2 - 100, b.y - 16, 200, 14, GK.alpha("#000", 0.35), 7); GK.rect(W / 2 - 100, b.y - 16, 200 * pull, 14, P[2], 7);
+    } else if (phase === "skim" || phase === "run") {
+      const b = GK.anchor("b", 0, 34), col = surf.kind === "film" ? (surf.f > 0.3 && surf.f < 0.75 ? "#80ed99" : P[4]) : surf.kind === "dry" ? "#e63946" : P[1];
+      slingEl.firstChild.textContent = surf.kind === "film" ? "glass ✧" : surf.kind === "dry" ? "dry sand!" : surf.kind === "deep" ? "too deep" : "shallow";
+      GK.rect(W / 2 - 100, b.y - 16, 200, 14, GK.alpha("#000", 0.35), 7); GK.rect(W / 2 - 100, b.y - 16, 200 * (surf.kind === "film" ? surf.f : surf.kind === "dry" ? 0 : 1), 14, col, 7);
+    } else if (phase === "done") {
+      GK.rect(0, H * 0.4, W, 90, GK.alpha(P[3], 0.55));
+      GK.text(doneMsg, W / 2, H * 0.4 + 30, { size: 30, color: wipe ? "#ffb3b3" : "#fff" }); GK.text(Math.round(feet) + " ft", W / 2, H * 0.4 + 68, { size: 24, color: P[4] });
+    }
+    GK.vignette(0.35, "#5a3d1e");
+  }
+  const eBtns = [];
+  function entryHit(x, y) { const b = eBtns.find((b) => x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h); return b && b.fn; }
+  function drawOver() {
+    const W = GK.width, H = GK.height; eBtns.length = 0;
+    GK.rect(0, 0, W, H, GK.alpha("#2a1d0c", 0.45));
+    const cw = Math.min(360, W - 30), cx = W / 2 - cw / 2, cy = H * 0.08, ch = H * 0.8;
+    GK.rect(cx, cy, cw, ch, "#fffaf0", 16); GK.rect(cx, cy, cw, 8, P[2], 4);
+    if (art.umbrellas) { GK.ctx().save(); GK.ctx().beginPath(); GK.ctx().roundRect(cx + 14, cy + 20, cw - 28, 90, 10); GK.ctx().clip(); GK.img(art.umbrellas, cx + 14, cy - 70, cw - 28, (cw - 28) * 1.5, { smooth: true }); GK.ctx().restore(); }
+    GK.text("longest skim", W / 2, cy + 140, { size: 24, color: "#6b5236", stroke: null, shadow: null });
+    GK.text(bestFt + " ft", W / 2, cy + 190, { size: 54, color: P[2], stroke: null, shadow: { x: 0, y: 3, blur: 0, color: "#f4d9c0" } });
+    GK.text(results.map((r) => (r.wipe ? "💦" : "") + r.ft).join(" · ") + "  on " + D().name, W / 2, cy + 232, { size: 15, color: "#6b5236", stroke: null, shadow: null });
+    let y = cy + 270;
+    if (entry.active) {
+      GK.text("new record! your initials", W / 2, y, { size: 18, color: P[3], stroke: null, shadow: null }); y += 24;
+      for (let i = 0; i < 3; i++) {
+        const bx = W / 2 - 96 + i * 64, sel = i === entry.slot;
+        eBtns.push({ x: bx, y: y, w: 56, h: 48, fn: (cyc) => { entry.slot = i; cyc(1); } });
+        GK.rect(bx, y, 56, 48, sel ? GK.alpha(P[2], 0.25) : GK.alpha(P[3], 0.08), 8); GK.text("▲", bx + 28, y + 24, { size: 22, color: P[2], stroke: null, shadow: null, font: "sans-serif" });
+        GK.rect(bx, y + 52, 56, 56, sel ? GK.alpha(P[2], 0.18) : GK.alpha("#fff", 0.6), 8); GK.text(entry.ini[i], bx + 28, y + 80, { size: 40, color: P[3], stroke: null, shadow: null });
+        eBtns.push({ x: bx, y: y + 112, w: 56, h: 48, fn: (cyc) => { entry.slot = i; cyc(-1); } });
+        GK.rect(bx, y + 112, 56, 48, sel ? GK.alpha(P[2], 0.25) : GK.alpha(P[3], 0.08), 8); GK.text("▼", bx + 28, y + 136, { size: 22, color: P[2], stroke: null, shadow: null, font: "sans-serif" });
+      }
+      y += 176; eBtns.push({ x: W / 2 - 90, y: y, w: 180, h: 54, fn: () => { commitEntry(); startSession(); } });
+      GK.rect(W / 2 - 90, y, 180, 54, P[2], 27); GK.text("OK · skim again", W / 2, y + 27, { size: 22, color: "#fff", stroke: null, shadow: null });
+    } else {
+      GK.text("leaderboard", W / 2, y, { size: 20, color: P[3], stroke: null, shadow: null }); y += 30;
+      if (!boardRows.length) GK.text("no skims yet — be the first", W / 2, y + 10, { size: 16, color: "#6b5236", stroke: null, shadow: null });
+      boardRows.forEach((r, i) => { GK.text((i + 1) + ".  " + r.ini, cx + 50, y + i * 30, { size: 22, align: "left", color: i === 0 ? P[2] : P[3], stroke: null, shadow: null }); GK.text(r.ft + " ft", cx + cw - 50, y + i * 30, { size: 22, align: "right", color: P[3], stroke: null, shadow: null }); GK.text(r.diff, W / 2 + 30, y + i * 30, { size: 13, color: "#9a8468", stroke: null, shadow: null, font: "sans-serif" }); });
+      y += 170; if (GK.canAccept() && Math.floor(sceneT * 2) % 2 === 0) GK.text(GK.isTouch ? "tap to skim again" : "space to skim again", W / 2, y, { size: 22, color: P[2], stroke: null, shadow: null });
+    }
+    GK.vignette(0.3, "#5a3d1e");
+  }
+  // ── CLIMAX (polish layer) ──
+  // Transformation "Glass-Off": at Golden Hour (attempt 3) every wet cell is perfect glass, the film dries 1.9× slower, the sheen turns to gold mirror with the low sun's streak, the bell voice joins the song, and the banner announces it. Wired above at glassOff().
+});
+</script>
+</body>
+</html>

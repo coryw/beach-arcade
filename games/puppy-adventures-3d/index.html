@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#8fd3ff">
+<meta name="description" content="Puppy Adventures — a 3D island game designed by the Beach Crew. Eat the pizza, bark at the birds, find Poppy.">
+<title>Puppy Adventures 3D</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐶</text></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="gl"></canvas>
+
+<div id="hud" class="hide">
+  <div id="hearts" class="chip"><span>❤️</span><span>❤️</span><span>❤️</span></div>
+  <div class="center">
+    <div id="goal" class="chip pizza">🍕 <b id="pizzas">8</b> left</div>
+    <div id="lunch" class="chip small">LUNCH 1 of 3</div>
+  </div>
+  <div class="right">
+    <div class="chip score"><span id="score">0</span></div>
+    <div class="chip small">best <b id="best">0</b></div>
+    <div id="bark-meter"><i></i></div>
+  </div>
+</div>
+<div id="msg" class="chip"></div>
+<div id="pops"></div>
+<div id="hint" class="chip small hide"></div>
+
+<div id="controls">
+  <div id="stick-zone"><div id="stick"><div id="knob"></div></div></div>
+  <div id="buttons">
+    <div id="btn-bark" class="btn"><span>🐕</span>BARK</div>
+    <div id="btn-jump" class="btn"><span>⬆️</span>JUMP</div>
+  </div>
+</div>
+
+<div id="title" class="overlay">
+  <div class="card">
+    <div class="sticker">3D!</div>
+    <div class="hero">🐶</div>
+    <h1>Puppy<br>Adventures</h1>
+    <p class="by">a game by <b>the Beach Crew</b> &nbsp;·&nbsp; best <b id="title-best">0</b></p>
+    <div class="howto">
+      <span class="chip">🕹️ run around the island</span>
+      <span class="chip">⬆️ jump</span>
+      <span class="chip">🐕 BARK at the birds!</span>
+      <span class="chip">🍕 eat every pizza · 🍦 heals · 💕 find Poppy</span>
+    </div>
+    <button id="play" class="play">PLAY!</button>
+    <p class="keys">keyboard: arrows / WASD run · Space jump · X bark</p>
+    <a class="chip small hub-link hide" href="../../">🏖️ more games</a>
+  </div>
+</div>
+
+<div id="over" class="overlay hide">
+  <div class="card">
+    <div class="hero" id="over-emoji">💤</div>
+    <h1 id="over-title">NAP TIME</h1>
+    <p class="msgline" id="over-msg"></p>
+    <div class="score">🍕 <span id="over-score">0</span></div>
+    <div class="best" id="over-best">best 0</div>
+    <button id="again" class="play">PLAY AGAIN!</button>
+    <a class="chip small hub-link hide" href="../../">🏖️ more games</a>
+  </div>
+</div>
+
+<div id="err"></div>
+<script type="module" src="game.js"></script>
+</body>
+</html>

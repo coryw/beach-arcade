@@ -1,0 +1,24 @@
+{
+  "slug": "shark-dodge",
+  "title": "Shark Dodge",
+  "by": "the kit (exemplar)",
+  "icon": "🦈",
+  "check": {
+    "ok": true,
+    "gate": 2,
+    "hash": "e1b520e5f4d3cc020e088c2518ad55459ed642f5"
+  },
+  "status": "playable",
+  "engine": "gk",
+  "players": 1,
+  "date": "2026-09-22",
+  "version": 1,
+  "orient": "landscape",
+  "controls": "dpad+ab",
+  "prompt": "EXEMPLAR — dodge/survival: swim around, sharks come faster and faster, grab shells, dash with B.",
+  "tags": [
+    "dodge",
+    "survival",
+    "exemplar"
+  ]
+}

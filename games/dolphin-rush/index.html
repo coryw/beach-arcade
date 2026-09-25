@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1d5f8f">
+<title>Dolphin Rush</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐬</text></svg>">
+<!-- Dolphin Rush by Ryan · 3d · runner-3d · look "Sunset Lagoon Leap" (lowpoly-pastel) · climax chase · started 2026-09-24
+     The idea, verbatim (DESIGN.md keeps the original): You are a dolphin racing through the ocean as fast as you can. You jump through hoops for points and dodge jellyfish and sharks, and it keeps getting faster. At the end a giant octopus tries to grab you. -->
+<script type="importmap">{"imports":{
+  "three": "../../vendor/three/r170/three.module.min.js",
+  "three/addons/": "../../vendor/three/r170/addons/"
+}}</script>
+<link rel="stylesheet" href="./lib-1/shell.css?v=1">
+<link rel="stylesheet" href="style.css?v=1">
+</head>
+<body>
+<canvas id="view"></canvas>
+
+<div id="hud" hidden><span id="score">0</span><span id="combo"></span></div>
+<div id="controls" hidden><div id="swipe"></div></div>
+
+<section id="title" data-start>
+  <h1 class="title">Dolphin Rush</h1>
+  <p class="by">by Ryan</p>
+  <p class="how">swipe ⬅ ➡ to swim · ⬆ to leap · ⬇ to dive</p>
+  <p id="prompt" class="prompt"></p>
+</section>
+<section id="over" data-start hidden>
+  <h2 class="title" id="overmsg">splash!</h2>
+  <p class="final"><span id="final">0</span></p>
+  <p class="by">best <span id="best">0</span></p>
+  <p id="again" class="prompt">swim again!</p>
+</section>
+
+<div id="rotate" hidden>🐬 turn me portrait!</div>
+<a id="hub" hidden>← arcade</a>
+<div id="err" role="alert" hidden></div>
+<script type="module" src="main.js?v=2"></script>
+</body>
+</html>

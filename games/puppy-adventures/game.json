@@ -1,0 +1,19 @@
+{
+  "slug": "puppy-adventures",
+  "title": "Puppy Adventures",
+  "by": "the Beach Crew",
+  "icon": "🐶",
+  "date": "2026-09-24",
+  "engine": "gk",
+  "orient": "landscape",
+  "controls": "dpad+ab",
+  "players": 1,
+  "prompt": "A puppy game that has adventures. A puppy adventure game. And weapons and rivalry. Climbing up cliffs and sharks. Puppy love. And boss battles, like major boss battles. No blood. No bad words. So let's take you away when you die. Birds. It's three dimensional. The puppies eat ice cream cones for health. Pizza for lunch.",
+  "status": "playable",
+  "version": 1,
+  "check": {
+    "ok": true,
+    "gate": 2,
+    "hash": "77b65033c1f99b96a920c97b0d8dc4907b8d97bd"
+  }
+}
