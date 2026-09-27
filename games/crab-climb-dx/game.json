@@ -1,0 +1,271 @@
+{
+  "slug": "crab-climb-dx",
+  "title": "Crab Climb DX",
+  "by": "the kit (exemplar)",
+  "icon": "🦀",
+  "date": "2026-09-24",
+  "prompt": "EXEMPLAR — platformer: run, jump, collect shells, stomp seagulls, dodge spikes, reach the flag before time runs out.",
+  "engine": "gk",
+  "lane": "2d",
+  "genre": "platformer-2d",
+  "orient": "landscape",
+  "players": 1,
+  "controls": "lr+a",
+  "controls_label": "👆 ◀ ▶ + JUMP · hold into a wall to scuttle up · ⌨️ arrows + space",
+  "look": {
+    "name": "Pocket Pixel '89",
+    "lane": "pixel-retro",
+    "palette": [
+      "#1a1c2c",
+      "#5d275d",
+      "#ef7d57",
+      "#ffcd75",
+      "#73eff7"
+    ],
+    "font": "press-start-2p",
+    "tone": "none",
+    "camera": "side follow, deadzone 20×36, look-ahead 36/30 px, 320×180 pixel buffer at an integer upscale",
+    "hero": "3-frame crab sprite (16×10 px, night outline, shaded underside), front-facing; turns 90° to scuttle up walls"
+  },
+  "climax": "escape",
+  "probes": [
+    {
+      "name": "run-right",
+      "phone": false,
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          800
+        ],
+        [
+          "hold",
+          "ArrowRight",
+          600
+        ],
+        [
+          "adv",
+          100
+        ]
+      ],
+      "expect": {
+        "focus.x": "changed"
+      }
+    },
+    {
+      "name": "jump-leaves-ground",
+      "phone": false,
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          800
+        ],
+        [
+          "adv",
+          300
+        ],
+        [
+          "press",
+          "Space"
+        ],
+        [
+          "adv",
+          150
+        ]
+      ],
+      "expect": {
+        "focus.y": "changed"
+      }
+    },
+    {
+      "name": "scuttle-up-the-step",
+      "phone": false,
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          800
+        ],
+        [
+          "hold",
+          "ArrowRight",
+          3200
+        ]
+      ],
+      "expect": {
+        "focus.y": "<125",
+        "focus.x": ">255"
+      }
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "late",
+      "query": "god=1&at=3",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          3000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==3"
+      },
+      "then": [
+        [
+          "adv",
+          8000
+        ]
+      ],
+      "expect_then": {
+        "error": null
+      }
+    },
+    {
+      "name": "shoals",
+      "query": "god=1&at=2",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          1500
+        ],
+        [
+          "hold",
+          "ArrowRight",
+          2500
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==2",
+        "focus.x": ">100"
+      }
+    },
+    {
+      "name": "low-tide-flag",
+      "query": "god=1",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          800
+        ],
+        [
+          "cmd",
+          "warp",
+          "flag"
+        ],
+        [
+          "hold",
+          "ArrowRight",
+          700
+        ],
+        [
+          "adv",
+          3000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==2"
+      }
+    },
+    {
+      "name": "escape",
+      "query": "god=1&at=3",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          8000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==3",
+        "escape.rising": true,
+        "tide": "<712"
+      }
+    }
+  ],
+  "exemplar": true,
+  "status": "playable",
+  "version": 2,
+  "check": {
+    "ok": true,
+    "gate": 2,
+    "hash": "ba30f3a28c5d09b29d79049e8d3a85244efc0526"
+  },
+  "review": {
+    "at": "2026-09-24T17:47:47",
+    "hash": "ba30f3a28c5d09b29d79049e8d3a85244efc0526",
+    "sheet_sha1": "dd5bf7ffde8b294fa055a2f6f8323ad86dccec64",
+    "warnings": 0,
+    "tests": 7,
+    "judge": {
+      "model": "sonnet",
+      "verdict": "distinct",
+      "pair": null,
+      "reason": "Both are space shooters set on the same TATOOINE level. Each shows a wizard-hat pilot in a ship, a row of three shield icons for lives, a weapon label (Magic Wand or Blaster), a HOUSE POWER or HOUSE METER bar with the same hamster emoji, and an orange planet against a starfield. The art style differs (a painted 3D look in 1, pixel sprites in 3), but the scene and HUD are clearly the same game. Ima",
+      "cost_usd": 0.0316236,
+      "pair_others": [
+        "space-wizards-3d",
+        "space-wizards"
+      ]
+    },
+    "notes": "v2 polish: read sheet + phone-play at full size; escape scenario shows the rising tide, gauge and surge waves on the dusk stack; pixel clouds replace nothing lost; warnings 0, tests 7"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "slug": "crab-climb",
+  "title": "Crab Climb",
+  "by": "the kit (exemplar)",
+  "icon": "🦀",
+  "check": {
+    "ok": true,
+    "gate": 2,
+    "hash": "06236ac68d12b004d10210f93a67e3d2b02d5b8f"
+  },
+  "status": "playable",
+  "engine": "gk",
+  "players": 1,
+  "date": "2026-09-22",
+  "version": 1,
+  "orient": "landscape",
+  "controls": "lr+a",
+  "prompt": "EXEMPLAR — platformer: run, jump, collect shells, stomp seagulls, dodge spikes, reach the flag before time runs out.",
+  "tags": [
+    "platformer",
+    "exemplar"
+  ]
+}

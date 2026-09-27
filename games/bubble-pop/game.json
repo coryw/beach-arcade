@@ -1,0 +1,24 @@
+{
+  "slug": "bubble-pop",
+  "title": "Bubble Pop",
+  "by": "the kit (exemplar)",
+  "icon": "🫧",
+  "check": {
+    "ok": true,
+    "gate": 2,
+    "hash": "d861ec073e71878befdb7ac172fee986fe153681"
+  },
+  "status": "playable",
+  "engine": "gk",
+  "players": 1,
+  "date": "2026-09-22",
+  "version": 1,
+  "orient": "portrait",
+  "controls": "tap",
+  "prompt": "EXEMPLAR — tap game: pop bubbles for 30 seconds, puffers are worth more, don't tap the crab, combos.",
+  "tags": [
+    "tap",
+    "timer",
+    "exemplar"
+  ]
+}

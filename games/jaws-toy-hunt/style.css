@@ -1,0 +1,90 @@
+/* Jaws Toy Hunt — the look: "Big Blue Boardwalk" (toon-ink). Every color and the face live here, never in the lib folder.
+   Type: Bangers, comic-book caps, always sand-white on navy ink with a 3 px ink stroke and a hard offset shadow —
+   the same navy ink as the 3D outlines, so the letters look drawn by the same pen as the shark. */
+@font-face { font-family: "Bangers"; src: url("../../vendor/fonts/bangers/bangers-latin-400.woff2") format("woff2"); font-display: block; }
+:root {
+  --c0: #16213e; --c1: #2f8fd6; --c2: #ffb703; --c3: #e63946; --c4: #f4f1ea;
+  --green: #8ac926;
+  --face: "Bangers", ui-rounded, system-ui, sans-serif;
+  --ink: -3px -3px 0 var(--c0), 3px -3px 0 var(--c0), -3px 3px 0 var(--c0), 3px 3px 0 var(--c0),
+         0 -3px 0 var(--c0), 0 3px 0 var(--c0), -3px 0 0 var(--c0), 3px 0 0 var(--c0);
+}
+body { background: var(--c1); color: var(--c4); font-family: var(--face); letter-spacing: 1px; -webkit-tap-highlight-color: transparent; }
+
+[data-screen]:not(body) {
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 8px; text-align: center;
+  box-sizing: border-box; padding: calc(var(--sa-t) + 6vh) calc(var(--sa-r) + 16px) calc(var(--sa-b) + 14px) calc(var(--sa-l) + 16px);
+}
+#title .title { margin: 0; font-size: clamp(56px, 16vmin, 132px); line-height: .82; color: var(--c4); letter-spacing: 3px;
+  text-shadow: var(--ink), 0 10px 0 var(--c0); transform: rotate(-3deg); }
+#title .title span { display: inline-block; color: var(--c3); font-size: 1.35em; transform: rotate(-4deg) translateY(4px); }
+#title .title em { display: inline-block; font-style: normal; color: var(--c2); transform: rotate(3deg); }
+.by { margin: 4px 0 0; font-size: clamp(18px, 4.6vmin, 30px); color: var(--c4); text-shadow: var(--ink); }
+.how { margin: auto 0 0; font-size: clamp(14px, 3.6vmin, 22px); line-height: 1.4; color: var(--c4); text-shadow: var(--ink);
+  background: color-mix(in srgb, var(--c0) 62%, transparent); padding: 8px 16px; border-radius: 16px; border: 3px solid var(--c0); }
+.prompt { margin: 8px 0 2vh; font-size: clamp(22px, 6vmin, 38px); color: var(--c2); text-shadow: var(--ink);
+  animation: bob 0.8s ease-in-out infinite alternate; }
+@keyframes bob { to { transform: translateY(-5px) scale(1.06) rotate(1deg); } }
+
+#over .title { margin: 0; font-size: clamp(56px, 18vmin, 128px); color: var(--c3); text-shadow: var(--ink), 0 8px 0 var(--c0); transform: rotate(-4deg); }
+#over .title.win { color: var(--green); }
+.why { margin: 0; font-size: clamp(16px, 4.2vmin, 26px); color: var(--c4); text-shadow: var(--ink); }
+.final { margin: 0; font-size: clamp(52px, 15vmin, 110px); color: var(--c2); text-shadow: var(--ink), 0 7px 0 var(--c0); }
+#over .by { color: var(--c4); }
+#newbest { margin: 0; font-size: clamp(24px, 7vmin, 40px); color: var(--green); text-shadow: var(--ink); transform: rotate(3deg); }
+#over #again { margin-top: auto; }
+
+#hud { position: absolute; top: calc(var(--sa-t) + 6px); left: 0; right: 0; height: 12vh; pointer-events: none; }
+#score { position: absolute; left: 0; right: 0; top: 0; text-align: center; font-size: clamp(32px, 9vmin, 56px); color: var(--c4); text-shadow: var(--ink), 0 5px 0 var(--c0); }
+#toys { position: absolute; right: calc(var(--sa-r) + 14px); top: 6px; font-size: clamp(18px, 5.5vmin, 30px); color: var(--c2); text-shadow: var(--ink); }
+#toys b { font-weight: 400; color: var(--c4); }
+#strikes { position: absolute; left: calc(var(--sa-l) + 14px); top: 44px; display: flex; gap: 6px; }
+#strikes i { display: block; width: 22px; height: 22px; border-radius: 6px; background: var(--c4); border: 3px solid var(--c0); box-shadow: 0 3px 0 var(--c0); }
+#strikes i.gone { background: var(--c3); transform: rotate(45deg) scale(.8); }
+#hands { position: absolute; left: 0; right: 0; top: 9vh; text-align: center; font-size: clamp(18px, 5vmin, 28px); color: var(--c1);
+  text-shadow: var(--ink); animation: bob 0.35s ease-in-out infinite alternate; }
+
+#banner { position: absolute; left: 0; right: 0; top: 22vh; text-align: center; pointer-events: none; z-index: 4; }
+#banner-t { display: inline-block; padding: 6px 22px 10px; border-radius: 18px; background: var(--c0); color: var(--c4); border: 3px solid var(--c4);
+  font-size: clamp(28px, 8vmin, 54px); letter-spacing: 2px; box-shadow: 0 6px 0 color-mix(in srgb, var(--c0) 60%, black); }
+#banner.angry #banner-t { background: var(--c3); border-color: var(--c0); }
+#banner.win #banner-t { background: var(--green); color: var(--c0); }
+#banner.go #banner-t { animation: slam .45s cubic-bezier(.2, 1.6, .4, 1) both; }
+@keyframes slam { from { transform: scale(2.4) rotate(-8deg); opacity: 0; } to { transform: scale(1) rotate(-2deg); opacity: 1; } }
+
+#pops { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 3; }
+#pops b { position: absolute; transform: translate(-50%, -50%); font-weight: 400; font-size: clamp(22px, 6.5vmin, 40px); color: var(--c4); text-shadow: var(--ink);
+  white-space: nowrap; opacity: 0; letter-spacing: 2px; }
+#pops b.toy { color: var(--c2); }
+#pops b.fart { color: var(--green); font-size: clamp(30px, 9vmin, 56px); }
+#pops b.hurt { color: var(--c3); }
+#pops b.shark { color: var(--c1); }
+#pops b.go { animation: pop .8s ease-out forwards; }
+@keyframes pop { 0% { opacity: 0; transform: translate(-50%, -30%) scale(.4) rotate(-6deg); } 18% { opacity: 1; transform: translate(-50%, -80%) scale(1.25); }
+  100% { opacity: 0; transform: translate(-50%, -260%) scale(.9) rotate(4deg); } }
+#flash { position: absolute; inset: 0; pointer-events: none; z-index: 5; }
+
+#stick-zone { position: absolute; left: 0; bottom: 0; width: 50%; height: 62%; touch-action: none; }
+#stick-base { position: absolute; width: 120px; height: 120px; border-radius: 50%; transform: translate(-50%, -50%); display: none;
+  background: color-mix(in srgb, var(--c0) 40%, transparent); border: 4px solid var(--c4); }
+#stick-knob { position: absolute; width: 56px; height: 56px; border-radius: 50%; display: none; background: var(--c2); border: 4px solid var(--c0); }
+#stick-zone.active #stick-base, #stick-zone.active #stick-knob { display: block; }
+#controls button {
+  position: absolute; bottom: calc(var(--sa-b) + 22px); width: 92px; height: 92px; border-radius: 50%;
+  border: 4px solid var(--c0); color: var(--c0); font: 26px var(--face); letter-spacing: 1px; opacity: .9; padding: 0;
+  box-shadow: 0 6px 0 var(--c0); }
+#btn-action { right: calc(var(--sa-r) + 128px); background: var(--c1); color: var(--c4); }
+#btn-jump { right: calc(var(--sa-r) + 22px); background: var(--c2); }
+#controls button.down { transform: translateY(4px); box-shadow: 0 2px 0 var(--c0); opacity: 1; }
+
+#rotate { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; padding: 24px; text-align: center;
+  background: var(--c1); color: var(--c4); font-size: 32px; text-shadow: var(--ink); }
+#hub { position: absolute; z-index: 10; top: calc(var(--sa-t) + 10px); left: calc(var(--sa-l) + 12px); color: var(--c4); text-decoration: none;
+  font-size: 18px; text-shadow: var(--ink); }
+#err { position: absolute; z-index: 30; left: 12px; right: 12px; bottom: calc(var(--sa-b) + 12px); padding: 12px 14px; border-radius: 12px;
+  white-space: pre-wrap; font: 15px/1.35 ui-monospace, monospace; background: var(--c4); color: var(--c0); }
+
+/* CLOSING TIME: the clock hangs under the score, red, and shakes when it is nearly out */
+#timer { position: absolute; left: 0; right: 0; top: 9.5vh; text-align: center; font-size: clamp(26px, 8vmin, 48px); color: var(--c3); text-shadow: var(--ink), 0 4px 0 var(--c0); }
+#timer.hurry { animation: hurry 0.25s ease-in-out infinite alternate; }
+@keyframes hurry { from { transform: scale(1) rotate(-2deg); } to { transform: scale(1.15) rotate(2deg); } }

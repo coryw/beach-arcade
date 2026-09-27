@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="description" content="Dreamed up by the Beach Crew and built for the Beach Arcade. A 3D game you play right in the browser — tap to play on any phone. Free, no ads, no download.">
+<meta property="og:type" content="website"><meta property="og:site_name" content="Beach Arcade">
+<meta property="og:title" content="Puppy Adventures 3D — a game by the Beach Crew"><meta property="og:description" content="Dreamed up by the Beach Crew and built for the Beach Arcade. A 3D game you play right in the browser — tap to play on any phone. Free, no ads, no download.">
+<meta property="og:url" content="https://coryw.github.io/beach-arcade/games/puppy-adventures-3d/">
+<meta property="og:image" content="https://coryw.github.io/beach-arcade/games/puppy-adventures-3d/og.jpg?v=c899041c6341"><meta property="og:image:secure_url" content="https://coryw.github.io/beach-arcade/games/puppy-adventures-3d/og.jpg?v=c899041c6341">
+<meta property="og:image:type" content="image/jpeg"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Puppy Adventures 3D — gameplay screenshot">
+<meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="Puppy Adventures 3D — a game by the Beach Crew">
+<meta name="twitter:description" content="Dreamed up by the Beach Crew and built for the Beach Arcade. A 3D game you play right in the browser — tap to play on any phone. Free, no ads, no download."><meta name="twitter:image" content="https://coryw.github.io/beach-arcade/games/puppy-adventures-3d/og.jpg?v=c899041c6341">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#8fd3ff">
+<meta name="description" content="Puppy Adventures — a 3D island game designed by the Beach Crew. Eat the pizza, bark at the birds, find Poppy.">
+<title>Puppy Adventures 3D</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐶</text></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="gl"></canvas>
+
+<div id="hud" class="hide">
+  <div id="hearts" class="chip"><span>❤️</span><span>❤️</span><span>❤️</span></div>
+  <div class="center">
+    <div id="goal" class="chip pizza">🍕 <b id="pizzas">8</b> left</div>
+    <div id="lunch" class="chip small">LUNCH 1 of 3</div>
+  </div>
+  <div class="right">
+    <div class="chip score"><span id="score">0</span></div>
+    <div class="chip small">best <b id="best">0</b></div>
+    <div id="bark-meter"><i></i></div>
+  </div>
+</div>
+<div id="msg" class="chip"></div>
+<div id="pops"></div>
+<div id="hint" class="chip small hide"></div>
+
+<div id="controls">
+  <div id="stick-zone"><div id="stick"><div id="knob"></div></div></div>
+  <div id="buttons">
+    <div id="btn-bark" class="btn"><span>🐕</span>BARK</div>
+    <div id="btn-jump" class="btn"><span>⬆️</span>JUMP</div>
+  </div>
+</div>
+
+<div id="title" class="overlay">
+  <div class="card">
+    <div class="sticker">3D!</div>
+    <div class="hero">🐶</div>
+    <h1>Puppy<br>Adventures</h1>
+    <p class="by">a game by <b>the Beach Crew</b> &nbsp;·&nbsp; best <b id="title-best">0</b></p>
+    <div class="howto">
+      <span class="chip">🕹️ run around the island</span>
+      <span class="chip">⬆️ jump</span>
+      <span class="chip">🐕 BARK at the birds!</span>
+      <span class="chip">🍕 eat every pizza · 🍦 heals · 💕 find Poppy</span>
+    </div>
+    <button id="play" class="play">PLAY!</button>
+    <p class="keys">keyboard: arrows / WASD run · Space jump · X bark</p>
+    <a class="chip small hub-link hide" href="../../">🏖️ more games</a>
+  </div>
+</div>
+
+<div id="over" class="overlay hide">
+  <div class="card">
+    <div class="hero" id="over-emoji">💤</div>
+    <h1 id="over-title">NAP TIME</h1>
+    <p class="msgline" id="over-msg"></p>
+    <div class="score">🍕 <span id="over-score">0</span></div>
+    <div class="best" id="over-best">best 0</div>
+    <button id="again" class="play">PLAY AGAIN!</button>
+    <a class="chip small hub-link hide" href="../../">🏖️ more games</a>
+  </div>
+</div>
+
+<div id="err"></div>
+<script type="module" src="game.js"></script>
+</body>
+</html>

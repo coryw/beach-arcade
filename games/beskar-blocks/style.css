@@ -1,0 +1,65 @@
+/* Beskar Blocks — the look: "Twin-Sun Blockland" (voxel). Every color and the face live here, never in the lib folder. */
+@font-face { font-family: "Bungee"; src: url("../../vendor/fonts/bungee/bungee-latin-400.woff2") format("woff2"); font-display: block; }
+:root {
+  --c0: #f3c98b; --c1: #b8663a; --c2: #c9d3dc; --c3: #e0362c; --c4: #7ccf4a;
+  --ink: #3a1d10; --metal: #8d99a6;
+  --face: "Bungee", ui-rounded, system-ui, sans-serif;
+}
+body { background: var(--c1); color: var(--c2); font-family: var(--face); -webkit-tap-highlight-color: transparent; }
+
+[data-screen]:not(body) {   /* body carries data-screen as well: the current screen's name */
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center;
+  box-sizing: border-box; padding: calc(var(--sa-t) + 16px) calc(var(--sa-r) + 16px) calc(var(--sa-b) + 16px) calc(var(--sa-l) + 16px);
+  background: radial-gradient(ellipse at center, rgba(58, 29, 16, .35), rgba(58, 29, 16, 0) 70%);
+}
+.kicker { margin: 0; font-size: clamp(14px, 3.6vmin, 24px); color: var(--c4); letter-spacing: .06em;
+  text-shadow: 2px 2px 0 var(--ink); }
+.title { margin: 0; font-size: clamp(38px, 11vmin, 104px); line-height: .95; color: var(--c2); text-transform: uppercase;
+  -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill; text-shadow: 0 6px 0 var(--c1), 0 9px 0 var(--ink); }
+#over .title { font-size: clamp(28px, 7.5vmin, 64px); }
+.by { margin: 0; font-size: clamp(16px, 4vmin, 26px); color: var(--c0); text-shadow: 2px 2px 0 var(--ink); }
+.how { margin: 4px 0 0; max-width: 34em; font-size: clamp(12px, 2.8vmin, 18px); color: #fff4df; text-shadow: 1px 1px 0 var(--ink); }
+.final { margin: 0; font-size: clamp(44px, 13vmin, 110px); color: var(--c0); -webkit-text-stroke: 3px var(--ink); paint-order: stroke fill;
+  text-shadow: 0 5px 0 var(--c1); }
+.prompt { margin: 10px 0 0; padding: 8px 18px; font-size: clamp(16px, 4vmin, 28px); color: #fff; background: var(--c3);
+  border: 3px solid var(--ink); box-shadow: 0 5px 0 var(--ink); animation: pulse 1.1s ease-in-out infinite alternate; }
+@keyframes pulse { to { transform: scale(1.06); } }
+
+#hud { position: absolute; inset: 0; pointer-events: none; font-size: clamp(18px, 5vmin, 34px); color: #fff; }
+#hud > * { position: absolute; text-shadow: 2px 2px 0 var(--ink); }
+#hearts { top: calc(var(--sa-t) + 38px); left: calc(var(--sa-l) + 14px); color: var(--c3); letter-spacing: 4px; }
+#hearts i { font-style: normal; }
+#hearts i.gone { color: rgba(58, 29, 16, .45); }
+#score { top: calc(var(--sa-t) + 8px); left: 0; right: 0; text-align: center; font-size: clamp(24px, 6.5vmin, 44px); color: var(--c0); }
+#frogs { top: calc(var(--sa-t) + 10px); right: calc(var(--sa-r) + 16px); color: var(--c4); }
+#meter { top: calc(var(--sa-t) + 52px); right: calc(var(--sa-r) + 16px); width: 150px; height: 20px; border: 3px solid var(--ink);
+  background: rgba(58, 29, 16, .5); overflow: hidden; }
+#meter b { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: var(--c4); }
+#meter span { position: absolute; inset: 0; font-size: 12px; line-height: 20px; text-align: center; color: #fff; }
+#meter.ready { box-shadow: 0 0 14px var(--c4); }
+#fuel { top: calc(var(--sa-t) + 80px); left: calc(var(--sa-l) + 16px); width: 90px; height: 10px; border: 2px solid var(--ink); background: rgba(58, 29, 16, .5); }
+#fuel b { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: #ffb13b; }
+#msg { position: absolute; left: 0; right: 0; top: 26%; text-align: center; pointer-events: none; font-size: clamp(24px, 7vmin, 56px);
+  color: var(--c0); -webkit-text-stroke: 2px var(--ink); paint-order: stroke fill; text-shadow: 0 5px 0 var(--c1); }
+
+#stick-zone { position: absolute; left: 0; bottom: 0; width: 50%; height: 62%; touch-action: none; }
+#stick-base { position: absolute; width: 110px; height: 110px; transform: translate(-50%, -50%); left: calc(var(--sa-l) + 110px); top: 64%;
+  border: 4px solid rgba(58, 29, 16, .6); background: rgba(201, 211, 220, .22); }
+#stick-knob { position: absolute; left: 30px; top: 30px; width: 50px; height: 50px; background: var(--c2); border: 3px solid var(--ink); }
+#controls button {
+  position: absolute; width: 86px; height: 86px; border: 4px solid var(--ink); box-shadow: 0 5px 0 var(--ink);
+  font: 16px var(--face); color: #fff; opacity: .9; touch-action: none;
+}
+#btn-blast { right: calc(var(--sa-r) + 22px); bottom: calc(var(--sa-b) + 26px); width: 104px; height: 104px; background: var(--c3); font-size: 19px; }
+#btn-jump { right: calc(var(--sa-r) + 142px); bottom: calc(var(--sa-b) + 18px); background: #d9822b; }
+#btn-force { right: calc(var(--sa-r) + 30px); bottom: calc(var(--sa-b) + 150px); width: 88px; height: 64px; background: #4d6b3a; color: #cfe8bf; font-size: 15px; }
+#btn-force.ready { background: var(--c4); color: var(--ink); box-shadow: 0 5px 0 var(--ink), 0 0 22px var(--c4); animation: pulse .5s ease-in-out infinite alternate; }
+#controls button.down { transform: translateY(4px); box-shadow: 0 1px 0 var(--ink); opacity: 1; }
+
+#flash { position: absolute; inset: 0; pointer-events: none; }
+#rotate { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; padding: 24px; text-align: center;
+  background: var(--c1); color: var(--c0); font-size: 30px; }
+#hub { position: absolute; z-index: 10; top: calc(var(--sa-t) + 10px); left: calc(var(--sa-l) + 12px); color: var(--c0); text-decoration: none;
+  font-size: 16px; text-shadow: 1px 1px 0 var(--ink); }
+#err { position: absolute; z-index: 30; left: 12px; right: 12px; bottom: calc(var(--sa-b) + 12px); padding: 12px 14px;
+  white-space: pre-wrap; font: 15px/1.35 ui-monospace, monospace; background: var(--ink); color: var(--c0); }

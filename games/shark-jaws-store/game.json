@@ -1,0 +1,216 @@
+{
+  "slug": "shark-jaws-store",
+  "title": "Shark Jaws Toy Store",
+  "by": "The Jaws Store Experience",
+  "icon": "🦈",
+  "date": "2026-09-24",
+  "prompt": "A game where you enter a huge store through the jaws of a giant shark and you have to run through the halls to find the coolest toys. There's an arcade machine where you can run up and push a button and it will make a fart noise. There's an area in the center of the store with a giant vat of water that has smaller sharks in it and you can stick your hands in to get the shark's attention, but you have to watch out for the store owner, who patrols the store looking for kids who put their hands in the water.",
+  "engine": "three",
+  "lane": "3d",
+  "genre": "arena-3d",
+  "orient": "landscape",
+  "players": 1,
+  "controls": "custom",
+  "controls_label": "🕹️ thumb stick + DASH / DIP · ⌨️ arrows + space",
+  "look": {
+    "name": "Tin Shark Emporium",
+    "lane": "glossy-toy",
+    "palette": [
+      "#123a5c",
+      "#2ec4b6",
+      "#ff9f1c",
+      "#e63946",
+      "#ffd23f"
+    ],
+    "font": "luckiest-guy",
+    "tone": "agx",
+    "camera": "top",
+    "hero": "a kid in an orange cap and hoodie with a teal backpack (lathe body + cap, extruded brim)"
+  },
+  "climax": "boss",
+  "toolbox": 2,
+  "probes": [
+    {
+      "name": "stick-moves",
+      "phone": true,
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          800
+        ],
+        [
+          "drag",
+          "[data-arcade-control=stick]",
+          "60,0",
+          300
+        ],
+        [
+          "adv",
+          200
+        ]
+      ],
+      "expect": {
+        "focus.x": "changed"
+      }
+    },
+    {
+      "name": "stick-and-dash",
+      "phone": true,
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          800
+        ],
+        [
+          "multi",
+          "[data-arcade-control=stick]",
+          "60,0",
+          "[data-arcade-control=dash]"
+        ],
+        [
+          "adv",
+          200
+        ]
+      ],
+      "expect": {
+        "inputs.dash": ">0",
+        "focus.x": "changed"
+      }
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "early",
+      "query": "god=1&at=toy-halls",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          3000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==toy-halls"
+      },
+      "then": [
+        [
+          "adv",
+          6000
+        ]
+      ],
+      "expect_then": {
+        "error": null
+      }
+    },
+    {
+      "name": "late",
+      "query": "god=1&at=closing-time",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          3000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==closing-time"
+      },
+      "then": [
+        [
+          "adv",
+          8000
+        ]
+      ],
+      "expect_then": {
+        "error": null
+      }
+    },
+    {
+      "name": "climax",
+      "query": "god=1&at=mega-jaws",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          4000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==mega-jaws",
+        "bossHp": ">0"
+      },
+      "then": [
+        [
+          "adv",
+          9000
+        ]
+      ],
+      "expect_then": {
+        "error": null
+      }
+    }
+  ],
+  "exemplar": false,
+  "status": "playable",
+  "version": 2,
+  "check": {
+    "ok": true,
+    "gate": 2,
+    "hash": "290a929791e201669fdbecee5cdfa38c2ea0f885"
+  },
+  "review": {
+    "at": "2026-09-24T20:14:38",
+    "hash": "290a929791e201669fdbecee5cdfa38c2ea0f885",
+    "sheet_sha1": "071b3780cce342c6dccab1e87f1c4b1bca2f51c0",
+    "warnings": 0,
+    "tests": 5,
+    "judge": {
+      "model": "sonnet",
+      "verdict": "distinct",
+      "pair": null,
+      "reason": "The candidate (3) is a top-down view of a checkerboard-tiled floor. It has round display tables with colored blocks, a glass tank with sharks, red suitcase-like items, a small tan character, a virtual joystick, a red DASH button, and an 'AISLE 1' label. Image 1 is a third-person low-poly ocean racer with a pink sunset sky, islands and rings. Image 2 is a third-person 3D grassy island with a dog, a",
+      "cost_usd": 0.032683
+    },
+    "notes": "v2 polish: read sheet + phone-play at full size; scn-climax shows MEGA JAWS tin wind-up shark with 3 gold keys readable from above and the MEGA JAWS bar; probed shark-bite (charge into the tank knocks a key) and the dip toy toss; kid still the only orange thing on the phone, controls clear"
+  }
+}

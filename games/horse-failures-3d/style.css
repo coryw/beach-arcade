@@ -1,0 +1,90 @@
+/* Horse Failures 3D — the look: "Tin Toy Derby" (glossy-toy). Every color and the face live here, never in the lib folder.
+   Type: Bungee, stamped-tin treatment — cream fill, a hard red drop layer and a navy outline, like the lid of a toy box. */
+@font-face { font-family: "Bungee"; src: url("../../vendor/fonts/bungee/bungee-latin-400.woff2") format("woff2"); font-display: block; }
+:root {
+  --navy: #2b2d42; --red: #ef233c; --brass: #ffd166; --sky: #8ecae6; --cream: #fdf0d5;
+  --face: "Bungee", ui-rounded, system-ui, sans-serif;
+  --stamp: -2px -2px 0 var(--navy), 2px -2px 0 var(--navy), -2px 2px 0 var(--navy), 2px 2px 0 var(--navy), 0 6px 0 var(--red), 0 9px 0 var(--navy);
+}
+body { background: var(--sky); color: var(--cream); font-family: var(--face); -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
+button { font-family: var(--face); -webkit-tap-highlight-color: transparent; touch-action: none; }
+
+[data-screen]:not(body) {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; text-align: center;
+  box-sizing: border-box; padding: calc(var(--sa-t) + 12px) calc(var(--sa-r) + 14px) calc(var(--sa-b) + 12px) calc(var(--sa-l) + 14px);
+}
+#title { background: radial-gradient(ellipse at 50% 45%, rgba(43, 45, 66, .38), rgba(43, 45, 66, 0) 62%); }
+.kicker { margin: 0; font-size: clamp(14px, 3.6vmin, 24px); letter-spacing: .12em; color: var(--brass); text-shadow: 0 2px 0 var(--navy); }
+.title { margin: 0; font-size: clamp(46px, 15vmin, 128px); line-height: .9; color: var(--cream); text-shadow: var(--stamp); }
+.by { margin: 8px 0 0; font-size: clamp(15px, 4vmin, 26px); color: var(--navy); background: var(--brass); padding: 4px 14px; border-radius: 6px;
+  border: 3px solid var(--navy); box-shadow: 0 4px 0 var(--navy); }
+.prompt { margin: 12px 0 0; font-size: clamp(16px, 4.4vmin, 28px); color: var(--cream); text-shadow: 0 3px 0 var(--navy); }
+
+/* ── the pick screen: four tin trading cards along the bottom, GO in the right thumb corner ── */
+#pick { justify-content: space-between; background: linear-gradient(rgba(43, 45, 66, .55), rgba(43, 45, 66, 0) 26%, rgba(43, 45, 66, 0) 58%, rgba(43, 45, 66, .5)); }
+.pick-head { margin: 0; font-size: clamp(24px, 7.5vmin, 56px); color: var(--cream); text-shadow: var(--stamp); font-weight: 400; }
+.pick-sub { margin: -4px 0 0; font-size: clamp(11px, 2.8vmin, 17px); color: var(--brass); text-shadow: 0 2px 0 var(--navy); flex: 1; }
+#cards { display: flex; gap: 8px; align-items: stretch; justify-content: center; width: 100%; }
+.card { position: relative; width: 136px; min-height: 104px; padding: 10px 6px 8px; border: 3px solid var(--navy); border-radius: 12px; background: var(--cream);
+  color: var(--navy); display: flex; flex-direction: column; align-items: center; gap: 3px; box-shadow: 0 5px 0 var(--navy); }
+.card .swatch { width: 34px; height: 12px; border-radius: 6px; border: 2px solid var(--navy); }
+.card .name { font-size: 12px; font-weight: 400; line-height: 1.05; overflow-wrap: anywhere; }
+.card .stat { font-size: 10px; color: var(--red); }
+.card .secret { font-size: 9px; color: #6b6f8c; }
+.card.sel { background: var(--brass); transform: translateY(-8px); box-shadow: 0 13px 0 var(--navy); }
+.card.sel::after { content: "▲"; position: absolute; top: -26px; font-size: 18px; color: var(--brass); text-shadow: 0 2px 0 var(--navy); }
+.go { width: 104px; border: 3px solid var(--navy); border-radius: 50%; background: var(--red); color: var(--cream); font-size: 22px;
+  box-shadow: 0 6px 0 var(--navy); text-shadow: 0 2px 0 var(--navy); }
+.go.down, .card.down { transform: translateY(3px); }
+
+/* ── the over screen ── */
+#over { justify-content: flex-start; background: linear-gradient(rgba(43, 45, 66, .6), rgba(43, 45, 66, .1) 45%, rgba(43, 45, 66, .1) 70%, rgba(43, 45, 66, .6)); }
+#over .title { font-size: clamp(40px, 13vmin, 110px); }
+#over .spacer { flex: 1; }
+.verdict { margin: 4px 0 0; padding: 4px 16px; font-size: clamp(16px, 5vmin, 34px); border: 4px solid; border-radius: 10px; transform: rotate(-5deg);
+  background: var(--cream); box-shadow: 0 5px 0 var(--navy); }
+.verdict.good { color: var(--navy); border-color: var(--brass); }
+.verdict.fail { color: var(--red); border-color: var(--red); }
+.secret-line { margin: 0; max-width: 34em; font-size: clamp(13px, 3.4vmin, 20px); color: var(--brass); text-shadow: 0 2px 0 var(--navy); }
+.final { margin: 4px 0 0; font-size: clamp(15px, 4vmin, 26px); color: var(--cream); text-shadow: 0 3px 0 var(--navy); }
+
+/* ── HUD: place on the left, lap in the middle, crowd points on the right ── */
+#hud { position: absolute; top: calc(var(--sa-t) + 8px); left: calc(var(--sa-l) + 14px); right: calc(var(--sa-r) + 14px); display: flex;
+  justify-content: space-between; align-items: flex-start; pointer-events: none; }
+#place { display: inline-block; font-size: clamp(34px, 11vmin, 64px); line-height: 1; color: var(--cream); text-shadow: var(--stamp); transform-origin: 0 50%; }
+#nerves { position: relative; width: 104px; height: 14px; margin-top: 12px; border: 2px solid var(--navy); border-radius: 8px; background: var(--cream); overflow: hidden; }
+#nerves-fill { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--red); }
+#nerves b { position: absolute; inset: 0; font-size: 9px; line-height: 11px; color: var(--navy); font-weight: 400; text-align: center; }
+#lap { font-size: clamp(16px, 5vmin, 30px); color: var(--navy); background: var(--brass); padding: 3px 12px; border: 3px solid var(--navy); border-radius: 8px; }
+#hud-right { text-align: right; line-height: 1; }
+#crowd { display: block; font-size: clamp(22px, 7vmin, 40px); color: var(--brass); text-shadow: 0 3px 0 var(--navy); }
+#hud-right small { font-size: 11px; color: var(--cream); text-shadow: 0 2px 0 var(--navy); }
+
+#cd { position: absolute; inset: 0; display: grid; place-items: start center; padding-top: 11vh; pointer-events: none; z-index: 4;
+  font: clamp(70px, 30vmin, 200px) var(--face); color: var(--cream); text-shadow: var(--stamp); }
+#pops { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 3; }
+#pops span { position: absolute; left: 0; top: 0; white-space: nowrap; font-size: clamp(18px, 6vmin, 34px); color: var(--cream); text-shadow: var(--stamp); will-change: transform, opacity; }
+#pops span.gold { color: var(--brass); }
+#pops span.small { font-size: clamp(13px, 4vmin, 22px); }
+#pops span.red { color: var(--red); }
+#pops span.big { font-size: clamp(40px, 14vmin, 104px); color: var(--brass); }
+
+/* ── touch controls: a steer rail on the left thumb, DRIFT + GIDDY-UP in the right thumb corner ── */
+#steer { position: absolute; left: calc(var(--sa-l) + 0px); bottom: calc(var(--sa-b) + 0px); width: 45%; height: 55%; touch-action: none; }
+#steer-rail { position: absolute; left: 22px; bottom: 34px; width: 190px; height: 18px; border-radius: 10px; background: rgba(43, 45, 66, .55); border: 3px solid var(--cream); }
+#steer span { position: absolute; left: 72px; bottom: 60px; font-size: 12px; color: var(--cream); text-shadow: 0 2px 0 var(--navy); pointer-events: none; }
+#steer-knob { position: absolute; left: 117px; bottom: 26px; width: 34px; height: 34px; border-radius: 50%; background: var(--brass); border: 3px solid var(--navy); pointer-events: none; }
+#controls button { position: absolute; border: 4px solid var(--navy); border-radius: 50%; color: var(--navy); box-shadow: 0 6px 0 var(--navy); }
+#btn-boost { right: calc(var(--sa-r) + 16px); bottom: calc(var(--sa-b) + 16px); width: 104px; height: 104px; background: var(--red); color: var(--cream);
+  font-size: 18px; line-height: 1; text-shadow: 0 2px 0 var(--navy); }
+#btn-drift { right: calc(var(--sa-r) + 132px); bottom: calc(var(--sa-b) + 18px); width: 76px; height: 76px; background: var(--brass); font-size: 14px; }
+#controls button.down { transform: translateY(4px) scale(.94); box-shadow: 0 2px 0 var(--navy); }
+
+#flash { position: absolute; inset: 0; pointer-events: none; z-index: 5; opacity: 0; }
+#rotate { position: absolute; inset: 0; z-index: 20; display: grid; place-content: center; gap: 12px; padding: 24px; text-align: center;
+  background: var(--navy); color: var(--cream); font-size: 22px; }
+#rotate b { font-size: 64px; font-weight: 400; }
+#hub { position: absolute; z-index: 10; top: calc(var(--sa-t) + 10px); left: calc(var(--sa-l) + 12px); color: var(--cream); text-decoration: none; font-size: 15px; text-shadow: 0 2px 0 var(--navy); }
+#err { position: absolute; z-index: 30; left: 12px; right: 12px; bottom: calc(var(--sa-b) + 12px); padding: 12px 14px; border-radius: 12px;
+  white-space: pre-wrap; font: 15px/1.35 ui-monospace, monospace; background: var(--cream); color: var(--navy); }
+body[data-screen="play"] #hub, body[data-screen="pick"] #hub { display: none; }

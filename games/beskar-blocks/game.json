@@ -1,0 +1,215 @@
+{
+  "slug": "beskar-blocks",
+  "title": "Beskar Blocks",
+  "by": "Alex",
+  "icon": "🪖",
+  "date": "2026-09-26",
+  "prompt": "Alex had the idea of making a game about The Mandalorian and Grogu. Build something like that, maybe make it incorporate Roblox and Minecraft as well.",
+  "engine": "three",
+  "lane": "3d",
+  "genre": "island-3d",
+  "orient": "landscape",
+  "players": 1,
+  "controls": "custom",
+  "controls_label": "🕹️ thumb stick + JET + BLAST + FORCE · ⌨️ arrows, Space, X, C",
+  "look": {
+    "name": "Twin-Sun Blockland",
+    "lane": "voxel",
+    "palette": [
+      "#f3c98b",
+      "#b8663a",
+      "#c9d3dc",
+      "#e0362c",
+      "#7ccf4a"
+    ],
+    "font": "bungee",
+    "tone": "neutral",
+    "camera": "follow",
+    "hero": "blocky beskar bounty hunter: square helmet with an extruded T-visor, lathe twin-rocket jetpack, brown cape; Grogu in a lathe hover-pram with extruded ears"
+  },
+  "climax": "boss",
+  "toolbox": 2,
+  "probes": [
+    {
+      "name": "stick-runs",
+      "phone": true,
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          800
+        ],
+        [
+          "drag",
+          "[data-arcade-control=stick]",
+          "0,-60",
+          400
+        ],
+        [
+          "adv",
+          200
+        ]
+      ],
+      "expect": {
+        "focus.z": "changed"
+      }
+    },
+    {
+      "name": "run-and-jump",
+      "phone": true,
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          800
+        ],
+        [
+          "multi",
+          "[data-arcade-control=stick]",
+          "60,0",
+          "[data-arcade-control=jump]"
+        ],
+        [
+          "adv",
+          150
+        ]
+      ],
+      "expect": {
+        "inputs.jump": ">0",
+        "focus.y": "changed"
+      }
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "early",
+      "query": "god=1&at=canyon",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          3000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==canyon"
+      },
+      "then": [
+        [
+          "adv",
+          8000
+        ]
+      ],
+      "expect_then": {
+        "error": null
+      }
+    },
+    {
+      "name": "late",
+      "query": "god=1&at=lava",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          3000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==lava"
+      },
+      "then": [
+        [
+          "adv",
+          8000
+        ]
+      ],
+      "expect_then": {
+        "error": null
+      }
+    },
+    {
+      "name": "climax",
+      "query": "god=1&at=golem",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          3000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==golem"
+      },
+      "then": [
+        [
+          "adv",
+          8000
+        ]
+      ],
+      "expect_then": {
+        "error": null
+      }
+    }
+  ],
+  "exemplar": false,
+  "status": "playable",
+  "version": 2,
+  "check": {
+    "ok": true,
+    "gate": 2,
+    "hash": "75d02521cd86f5b689c0aa333de9864c3b097fe9"
+  },
+  "review": {
+    "at": "2026-09-26T20:02:06",
+    "hash": "75d02521cd86f5b689c0aa333de9864c3b097fe9",
+    "sheet_sha1": "043d8554eff36c535acc853799730ecd2589bad6",
+    "warnings": 1,
+    "tests": 5,
+    "judge": {
+      "model": "sonnet",
+      "verdict": "distinct",
+      "pair": null,
+      "reason": "The candidate (4) is a third-person voxel/blocky desert scene. It has a helmeted armored character, a green child creature in a floating pod, orange sand and rock blocks, hearts, a 0/8 counter, and FORCE/JET/BLAST buttons. Image 1 is a purple runway with a fashion theme, low-poly dresses and bows, and a gold gantry. Image 2 is a top-down beach and ocean scene with a surfer, umbrellas, and distance",
+      "cost_usd": 0.0324188
+    },
+    "notes": "Polish v2: read sheet.png, phone-play.png and scn-climax.png at full size — Block Golem readable against the twin-sun sky with 3 red cores, hero + Grogu + trooper in frame, controls clear; same single programs warning as v1"
+  }
+}

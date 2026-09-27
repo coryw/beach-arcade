@@ -1,0 +1,213 @@
+{
+  "slug": "skim-shot",
+  "title": "Skim Shot",
+  "by": "Cory",
+  "icon": "🏄",
+  "date": "2026-09-25",
+  "prompt": "A 2D top-down game. The view is an aerial view of the beach: the ocean on the right side and the beach on the left. Waves are lapping up on the shore and leaving a thin film perfect for skimboarding. There is a SkimShot bungee system: https://camwatersports.com/products/skimshot-50-bungee-set There is a long black bungee cord anchored on the beach on dry land, but when the water washes up on shore after waves, it overlaps the bungee anchor. So the player clicks and pulls back the orange handle with the skimboarder attached and has to time it perfectly so the skimboarder glides across the water as the water is on the shore. The goal is to have the longest skim. If the water recedes before the skim finishes, they fall off. Otherwise they slow down and stop. If the water level is too high, they simply go slower. So they have to time it right so there is a small film of water, similar to how skimboarding actually works. There should be a leaderboard where the person can put in their initials (like an arcade game) to see who gets the longest skim. Maybe there can be difficulty settings, and increasing difficulty means they have to dodge kids and other obstacles. Make it gorgeous and fun and playable for all ages, so even adults can enjoy higher difficulties. The player should also be able to customize their appearance and skimboard. Use actual art from our beach house.",
+  "engine": "gk",
+  "lane": "2d",
+  "genre": "tap-2d",
+  "orient": "portrait",
+  "players": 1,
+  "controls": "custom",
+  "controls_label": "👆 drag down + let go · steer with a finger · ⌨️ hold ↓ / Space, ← →",
+  "look": {
+    "name": "Mirror-Sand Postcard",
+    "lane": "storybook",
+    "palette": [
+      "#f0dfb8",
+      "#3aa7b8",
+      "#ff7a1a",
+      "#1d3557",
+      "#ffc93c"
+    ],
+    "font": "pacifico",
+    "tone": "none",
+    "camera": "vertical follow, lookahead up the shore",
+    "hero": "a drawn sprite of paths, seen from above: head with hair, rashguard shoulders, trunks, balance arms, on a drawn skimboard with 4 deck designs; a faded reflection on the film"
+  },
+  "climax": "transformation",
+  "probes": [
+    {
+      "name": "pull-and-release-skims",
+      "phone": true,
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          600
+        ],
+        [
+          "drag",
+          "195,420",
+          "0,220",
+          500
+        ],
+        [
+          "adv",
+          1400
+        ]
+      ],
+      "expect": {
+        "phase": "!=pull",
+        "focus.y": "<120"
+      }
+    },
+    {
+      "name": "tap-moves-cursor",
+      "phone": false,
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          800
+        ],
+        [
+          "tap",
+          "640,360"
+        ],
+        [
+          "adv",
+          200
+        ]
+      ],
+      "expect": {
+        "focus.cursor": "changed"
+      }
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "morning",
+      "query": "god=1&at=1",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          2000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==1"
+      },
+      "then": [
+        [
+          "adv",
+          6000
+        ]
+      ],
+      "expect_then": {
+        "error": null
+      }
+    },
+    {
+      "name": "midday",
+      "query": "god=1&at=2",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          2000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==2"
+      },
+      "then": [
+        [
+          "adv",
+          6000
+        ]
+      ],
+      "expect_then": {
+        "error": null
+      }
+    },
+    {
+      "name": "late",
+      "query": "god=1&at=3",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          3000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==3",
+        "glassOff": true
+      },
+      "then": [
+        [
+          "adv",
+          8000
+        ]
+      ],
+      "expect_then": {
+        "error": null
+      }
+    }
+  ],
+  "exemplar": false,
+  "status": "playable",
+  "version": 2,
+  "check": {
+    "ok": true,
+    "gate": 2,
+    "hash": "7d9b713540e659bf942a214c83fd55955902c564"
+  },
+  "review": {
+    "at": "2026-09-25T12:05:37",
+    "hash": "7d9b713540e659bf942a214c83fd55955902c564",
+    "sheet_sha1": "1a3096de5caed5ffd4885ec9bf4c785f5e46e443",
+    "warnings": 0,
+    "tests": 5,
+    "judge": {
+      "model": "sonnet",
+      "verdict": "distinct",
+      "pair": null,
+      "reason": "The candidate (3) is a top-down beach scene. A surfer on an orange board rides teal water beside a sandy shore with yellow umbrellas, loungers, and distance markers in feet. It uses a handwritten script font and a muted, painterly palette. Image 1 is a third-person runner in a purple fashion runway corridor with a pink dress and gold gates. Image 2 is a top-down toy store with a checkered floor, d",
+      "cost_usd": 0.032643
+    },
+    "notes": "read sheet.png, phone-play.png and probe-glass.png at full size: the Glass-Off golden-hour mirror with the sun streak and spray trail, the house roof at the boardwalk, the wrack line, the cord and handle unchanged; nothing regressed on the title or the pull"
+  }
+}

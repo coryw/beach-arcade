@@ -1,0 +1,47 @@
+/* Glowtide Skim — the look: "Moonwash Glowtide" (neon-synth). Every color and the face live here, never in the lib folder. */
+@font-face { font-family: "Righteous"; src: url("../../vendor/fonts/righteous/righteous-latin-400.woff2") format("woff2"); font-display: block; }
+:root {
+  --c0: #0a0f2c; --c1: #1e4f8a; --c2: #ffb347; --c3: #ff4f7b; --c4: #3dfbd6;
+  --face: "Righteous", ui-rounded, system-ui, sans-serif;
+  --glow: 0 0 6px rgba(61,251,214,.9), 0 0 22px rgba(61,251,214,.55), 0 3px 0 var(--c0);
+}
+body { background: var(--c0); color: var(--c4); font-family: var(--face); -webkit-tap-highlight-color: transparent; }
+#swipe { position: absolute; left: 0; right: 0; top: calc(var(--sa-t) + 13vh); bottom: 0; touch-action: none; }
+
+[data-screen]:not(body) {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center;
+  box-sizing: border-box; padding: calc(var(--sa-t) + 16px) calc(var(--sa-r) + 16px) calc(var(--sa-b) + 16px) calc(var(--sa-l) + 16px);
+  background: radial-gradient(ellipse at 50% 42%, rgba(10,15,44,.55), rgba(10,15,44,0) 70%);
+}
+.title { margin: 0; font-size: clamp(46px, 13vmin, 110px); line-height: .9; color: #eafffb; text-shadow: var(--glow);
+  display: flex; flex-direction: column; align-items: center; letter-spacing: .02em; }
+.title .skim { color: var(--c2); font-size: 1.25em; transform: rotate(-4deg); text-shadow: 0 0 8px rgba(255,179,71,.9), 0 0 26px rgba(255,120,40,.6), 0 4px 0 var(--c0); }
+.by { margin: 0; font-size: clamp(16px, 4vmin, 26px); color: var(--c2); text-shadow: 0 2px 0 var(--c0); }
+.how { margin: 6px 0 0; font: 600 clamp(13px, 3.4vmin, 18px)/1.45 ui-rounded, system-ui, sans-serif; color: #cfe0ff; text-shadow: 0 2px 0 var(--c0); }
+.how b { color: var(--c4); }
+.final { margin: 0; font-size: clamp(52px, 15vmin, 120px); color: var(--c4); text-shadow: var(--glow); }
+#over .title { color: var(--c3); text-shadow: 0 0 8px rgba(255,79,123,.9), 0 0 24px rgba(255,79,123,.5), 0 4px 0 var(--c0); }
+#newbest { margin: 0; font-size: 24px; color: var(--c2); text-shadow: 0 0 10px rgba(255,179,71,.8); }
+.prompt { margin: 12px 0 0; font-size: clamp(18px, 4.5vmin, 30px); color: var(--c2); animation: pulse 1.1s ease-in-out infinite alternate; }
+@keyframes pulse { to { transform: scale(1.08); } }
+
+#hud { position: absolute; top: calc(var(--sa-t) + 10px); left: 0; right: 0; display: flex; justify-content: center; align-items: center; gap: 18px;
+  pointer-events: none; font-size: clamp(28px, 7vmin, 46px); color: #eafffb; text-shadow: var(--glow); }
+#glass { display: inline-flex; align-items: center; gap: 6px; font-size: .7em; color: var(--c4); }
+.glass-ico { width: .8em; height: .8em; background: var(--c4); transform: rotate(45deg); border-radius: 3px; box-shadow: 0 0 10px var(--c4); display: inline-block; }
+#glow-tag { position: absolute; top: 2.1em; font-size: .5em; color: var(--c0); background: var(--c4); padding: 2px 10px; border-radius: 999px;
+  box-shadow: 0 0 14px var(--c4); text-shadow: none; opacity: 0; transition: opacity .15s; }
+body.wet #glow-tag { opacity: 1; }
+#pops { position: absolute; left: 50%; top: 34%; pointer-events: none; }
+.pop { position: absolute; left: 0; top: 0; white-space: nowrap; font-size: 28px; color: #eafffb; text-shadow: var(--glow); }
+.pop.glow { color: var(--c4); }
+.pop.near { color: var(--c2); text-shadow: 0 0 8px rgba(255,179,71,.8), 0 2px 0 var(--c0); }
+.pop.big { font-size: 44px; color: var(--c3); text-shadow: 0 0 10px rgba(255,79,123,.9), 0 3px 0 var(--c0); top: -40px; }
+
+#rotate { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; padding: 24px; text-align: center;
+  background: var(--c0); color: var(--c4); font-size: 30px; }
+#hub { position: absolute; z-index: 10; top: calc(var(--sa-t) + 10px); left: calc(var(--sa-l) + 12px); color: var(--c4); text-decoration: none; font-size: 18px; }
+#err { position: absolute; z-index: 30; left: 12px; right: 12px; bottom: calc(var(--sa-b) + 12px); padding: 12px 14px; border-radius: 12px;
+  white-space: pre-wrap; font: 15px/1.35 ui-monospace, monospace; background: var(--c4); color: var(--c0); }
+#rescue-t { position: absolute; top: 3.1em; font-size: .62em; color: var(--c2); text-shadow: 0 0 8px rgba(255,179,71,.9), 0 2px 0 var(--c0); display: none; }
+body.rescue #rescue-t { display: block; }

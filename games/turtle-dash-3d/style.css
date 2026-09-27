@@ -1,0 +1,70 @@
+/* Turtle Dash 3D — the look: "Tidepool Toon" (toon-ink). Every color and the face live here, never in the lib folder.
+   Type: Lilita One, fat and friendly, always sand-on-ink with a 3 px ink outline and a hard drop shadow (the same ink
+   as the 3D outlines), so the letters look cut from the same toon world. */
+@font-face { font-family: "Lilita One"; src: url("../../vendor/fonts/lilita-one/lilita-one-latin-400.woff2") format("woff2"); font-display: block; }
+:root {
+  --c0: #1b1b3a; --c1: #0f4c5c; --c2: #2ec4b6; --c3: #ff7a59; --c4: #f6d7a7;
+  --gold: #ffcf5a;
+  --face: "Lilita One", ui-rounded, system-ui, sans-serif;
+  --ink: -3px -3px 0 var(--c0), 3px -3px 0 var(--c0), -3px 3px 0 var(--c0), 3px 3px 0 var(--c0),
+         0 -3px 0 var(--c0), 0 3px 0 var(--c0), -3px 0 0 var(--c0), 3px 0 0 var(--c0);
+}
+body { background: var(--c1); color: var(--c4); font-family: var(--face); -webkit-tap-highlight-color: transparent; }
+
+[data-screen]:not(body) {   /* body carries data-screen as well: the current screen's name */
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 10px; text-align: center;
+  box-sizing: border-box; padding: calc(var(--sa-t) + 12vh) calc(var(--sa-r) + 16px) calc(var(--sa-b) + 16px) calc(var(--sa-l) + 16px);
+}
+#title .title { margin: 0; font-size: clamp(54px, 17vw, 120px); line-height: .86; color: var(--c4); letter-spacing: 1px;
+  text-shadow: var(--ink), 0 9px 0 var(--c0); transform: rotate(-4deg); }
+#title .title span { display: inline-block; }
+#title .title span:nth-child(2) { color: var(--c2); }
+#title .title em { display: block; font-style: normal; font-size: .5em; color: var(--c3); transform: rotate(6deg) translateX(30%); }
+.by { margin: 6px 0 0; font-size: clamp(18px, 5vw, 28px); color: var(--c4); text-shadow: var(--ink); }
+.how { margin: auto 0 0; font-size: clamp(15px, 4.2vw, 22px); line-height: 1.35; color: var(--c4); text-shadow: var(--ink);
+  background: color-mix(in srgb, var(--c0) 55%, transparent); padding: 10px 16px; border-radius: 18px; }
+.prompt { margin: 12px 0 calc(8vh); font-size: clamp(22px, 6.5vw, 36px); color: var(--c3); text-shadow: var(--ink);
+  animation: bob 0.9s ease-in-out infinite alternate; }
+@keyframes bob { to { transform: translateY(-6px) scale(1.06); } }
+
+#over .title { margin: 0; font-size: clamp(64px, 20vw, 130px); color: var(--c3); text-shadow: var(--ink), 0 8px 0 var(--c0); transform: rotate(-5deg); }
+.final { margin: 0; font-size: clamp(56px, 17vw, 120px); color: var(--c4); text-shadow: var(--ink), 0 7px 0 var(--c0); }
+#over .by { color: var(--c2); }
+#newbest { margin: 0; font-size: clamp(26px, 8vw, 42px); color: var(--gold); text-shadow: var(--ink); transform: rotate(3deg); }
+#over #again { margin-top: auto; }
+
+#swipe { position: absolute; left: 0; right: 0; top: calc(var(--sa-t) + 13vh); bottom: 0; touch-action: none; }
+#hud { position: absolute; top: calc(var(--sa-t) + 8px); left: 0; right: 0; height: 11vh; pointer-events: none; }
+#score { position: absolute; left: 0; right: 0; top: 0; text-align: center; font-size: clamp(34px, 10vw, 54px); color: var(--c4); text-shadow: var(--ink), 0 5px 0 var(--c0); }
+#cones { position: absolute; right: calc(var(--sa-r) + 16px); top: 8px; display: flex; align-items: center; gap: 6px;
+  font-size: clamp(20px, 6vw, 30px); color: var(--c4); text-shadow: var(--ink); }
+.cone-ico { display: inline-block; width: 18px; height: 28px; position: relative; }
+.cone-ico::before { content: ""; position: absolute; left: 1px; top: 11px; border-left: 8px solid transparent; border-right: 8px solid transparent;
+  border-top: 17px solid #d9a066; filter: drop-shadow(0 0 0 var(--c0)); }
+.cone-ico::after { content: ""; position: absolute; left: 0; top: 0; width: 18px; height: 14px; border-radius: 9px 9px 4px 4px;
+  background: var(--c4); box-shadow: 0 0 0 2px var(--c0); }
+#chain { position: absolute; right: calc(var(--sa-r) + 14px); top: 52px; font-size: clamp(22px, 6.5vw, 32px); color: var(--gold); text-shadow: var(--ink);
+  transform: rotate(-8deg); }
+
+#banner { position: absolute; left: 0; right: 0; top: 24vh; text-align: center; pointer-events: none; z-index: 4; }
+#banner-t { display: inline-block; padding: 8px 22px 12px; border-radius: 20px; background: var(--c0); color: var(--c4);
+  font-size: clamp(30px, 9vw, 52px); box-shadow: 0 6px 0 color-mix(in srgb, var(--c0) 60%, black); }
+#banner.go #banner-t { animation: slam .5s cubic-bezier(.2, 1.6, .4, 1) both; }
+@keyframes slam { from { transform: scale(2.2) rotate(-10deg); opacity: 0; } to { transform: scale(1) rotate(-3deg); opacity: 1; } }
+
+#pops { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 3; }
+#pops b { position: absolute; transform: translate(-50%, -50%); font-weight: 400; font-size: clamp(24px, 7vw, 38px); color: var(--c4); text-shadow: var(--ink);
+  white-space: nowrap; opacity: 0; }
+#pops b.hit { color: var(--c3); }
+#pops b.gold { color: var(--gold); }
+#pops b.dodge { color: var(--c2); font-size: clamp(20px, 5.5vw, 30px); }
+#pops b.go { animation: pop .75s ease-out forwards; }
+@keyframes pop { 0% { opacity: 0; transform: translate(-50%, -30%) scale(.4); } 18% { opacity: 1; transform: translate(-50%, -80%) scale(1.25); }
+  100% { opacity: 0; transform: translate(-50%, -260%) scale(.9); } }
+
+#rotate { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; padding: 24px; text-align: center;
+  background: var(--c1); color: var(--c4); font-size: 30px; text-shadow: var(--ink); }
+#hub { position: absolute; z-index: 10; top: calc(var(--sa-t) + 10px); left: calc(var(--sa-l) + 12px); color: var(--c4); text-decoration: none;
+  font-size: 18px; text-shadow: var(--ink); }
+#err { position: absolute; z-index: 30; left: 12px; right: 12px; bottom: calc(var(--sa-b) + 12px); padding: 12px 14px; border-radius: 12px;
+  white-space: pre-wrap; font: 15px/1.35 ui-monospace, monospace; background: var(--c4); color: var(--c0); }

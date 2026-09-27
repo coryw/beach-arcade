@@ -1,0 +1,334 @@
+{
+  "slug": "horse-failures-3d",
+  "title": "Horse Failures 3D",
+  "by": "Sean",
+  "icon": "🐴",
+  "date": "2026-09-24",
+  "prompt": "Horse Failures: a game where you choose a horse and it can either be a good horse or a bad horse (a failure). Super silly and fun.",
+  "engine": "three",
+  "lane": "3d",
+  "genre": "kart-3d",
+  "orient": "landscape",
+  "players": 1,
+  "controls": "custom",
+  "controls_label": "🕹️ steer rail + GIDDY-UP + DRIFT · ⌨️ arrows, space, shift",
+  "look": {
+    "name": "Tin Toy Derby",
+    "lane": "glossy-toy",
+    "palette": [
+      "#2b2d42",
+      "#ef233c",
+      "#ffd166",
+      "#8ecae6",
+      "#fdf0d5"
+    ],
+    "font": "bungee",
+    "tone": "agx",
+    "camera": "follow",
+    "hero": "painted-tin horse: geo.extrude side-profile torso+neck and head (SVG paths), extruded brass mane and tail, geo.rbox legs with navy hooves, a turning wind-up key; one vertex-coloured mat.standard (metalness 0.35, roughness 0.35) under a RoomEnvironment envMap"
+  },
+  "climax": "race-finish",
+  "toolbox": 2,
+  "probes": [
+    {
+      "name": "steer-moves",
+      "phone": true,
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          3200
+        ],
+        [
+          "drag",
+          "[data-arcade-control=stick]",
+          "60,0",
+          400
+        ],
+        [
+          "adv",
+          300
+        ]
+      ],
+      "expect": {
+        "focus.offset": "changed",
+        "inputs.stick": ">0"
+      }
+    },
+    {
+      "name": "steer-and-boost",
+      "phone": true,
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          3200
+        ],
+        [
+          "multi",
+          "[data-arcade-control=stick]",
+          "60,0",
+          "[data-arcade-control=boost]"
+        ],
+        [
+          "adv",
+          300
+        ]
+      ],
+      "expect": {
+        "inputs.boost": ">0",
+        "inputs.stick": ">0",
+        "focus.offset": "changed"
+      }
+    },
+    {
+      "name": "pick-a-horse",
+      "phone": true,
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "tap",
+          "#title"
+        ],
+        [
+          "adv",
+          800
+        ],
+        [
+          "tap",
+          "[data-arcade-control=pick2]"
+        ],
+        [
+          "adv",
+          200
+        ]
+      ],
+      "expect": {
+        "screen": "==pick",
+        "selected": "==2"
+      }
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "pick",
+      "query": "",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          400
+        ]
+      ],
+      "expect": {
+        "screen": "==pick"
+      }
+    },
+    {
+      "name": "mid",
+      "query": "god=1&at=lap2",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          3000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==lap2"
+      }
+    },
+    {
+      "name": "late",
+      "query": "god=1&at=lap3",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          3000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==lap3",
+        "climax": "==final"
+      },
+      "then": [
+        [
+          "adv",
+          8000
+        ]
+      ],
+      "expect_then": {
+        "error": null
+      }
+    },
+    {
+      "name": "secret",
+      "query": "god=1",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          4000
+        ],
+        [
+          "cmd",
+          "fail"
+        ],
+        [
+          "adv",
+          1600
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "crowd": ">=250"
+      }
+    },
+    {
+      "name": "podium",
+      "query": "god=1&at=lap3",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          30000
+        ]
+      ],
+      "expect": {
+        "screen": "==over",
+        "climax": "==podium",
+        "stage": "==lap3"
+      }
+    }
+  ],
+  "exemplar": true,
+  "status": "playable",
+  "version": 2,
+  "check": {
+    "ok": true,
+    "gate": 2,
+    "hash": "11845bb4aae94317b59ee0cb2749bfc43c963591"
+  },
+  "review": {
+    "at": "2026-09-24T18:17:09",
+    "hash": "11845bb4aae94317b59ee0cb2749bfc43c963591",
+    "sheet_sha1": "f1a6a00a6b60ccce23326b62d684e027f46271f1",
+    "warnings": 0,
+    "tests": 8,
+    "judge": {
+      "model": "sonnet",
+      "verdict": "distinct",
+      "pair": null,
+      "reason": "Both are space shooters set on Tatooine. Each has a wizard-hat pilot in a ship, a House/hamster mascot power meter, a shield-icon lives display, a weapon label (Blaster in 1, Magic Wand in 2), and an orange, desert-planet space backdrop. Image 1 is flat pixel-art and image 2 is a more polished render, but the scene and HUD elements match. Image 3 is a low-poly ocean runner and image 4 is a voxel h",
+      "cost_usd": 0.0314938,
+      "pair_others": [
+        "space-wizards",
+        "space-wizards-3d"
+      ]
+    },
+    "notes": "Integration pass: relib to toolbox lib-2 (Streaks blending option, G.warm accepts fx instances). Sheet re-read: Tin Toy Derby title over the live track and grandstand, countdown with the tin horses, steer rail + DRIFT/GIDDY-UP buttons clear of the hero, lap 3 late scenario; 0 warnings, perf unchanged (65 calls, overdraw 2.52)."
+  }
+}

@@ -1,0 +1,216 @@
+{
+  "slug": "dolphin-rush",
+  "title": "Dolphin Rush",
+  "by": "Ryan",
+  "icon": "🐬",
+  "date": "2026-09-24",
+  "prompt": "You are a dolphin racing through the ocean as fast as you can. You jump through hoops for points and dodge jellyfish and sharks, and it keeps getting faster. At the end a giant octopus tries to grab you.",
+  "engine": "three",
+  "lane": "3d",
+  "genre": "runner-3d",
+  "orient": "portrait",
+  "players": 1,
+  "controls": "custom",
+  "controls_label": "👆 swipe · ⌨️ arrows",
+  "look": {
+    "name": "Sunset Lagoon Leap",
+    "lane": "lowpoly-pastel",
+    "palette": [
+      "#ffc49b",
+      "#1d5f8f",
+      "#9cc3ea",
+      "#ff4f9a",
+      "#ffd23f"
+    ],
+    "font": "pacifico",
+    "tone": "neutral",
+    "camera": "follow",
+    "hero": "a lathed blue-grey dolphin with a pale belly, extruded dorsal fin, flippers and a wagging fluke"
+  },
+  "climax": "chase",
+  "toolbox": 1,
+  "probes": [
+    {
+      "name": "swipe-moves-lane",
+      "phone": true,
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          800
+        ],
+        [
+          "swipe",
+          "[data-arcade-swipe]",
+          "left"
+        ],
+        [
+          "adv",
+          300
+        ]
+      ],
+      "expect": {
+        "focus.lane": "changed"
+      }
+    },
+    {
+      "name": "swipe-up-jumps",
+      "phone": true,
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          800
+        ],
+        [
+          "swipe",
+          "[data-arcade-swipe]",
+          "up"
+        ],
+        [
+          "adv",
+          150
+        ]
+      ],
+      "expect": {
+        "focus.y": "changed"
+      }
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "early",
+      "query": "god=1&at=lagoon",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          3000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==lagoon"
+      },
+      "then": [
+        [
+          "adv",
+          4000
+        ]
+      ],
+      "expect_then": {
+        "error": null
+      }
+    },
+    {
+      "name": "late",
+      "query": "god=1&at=reef",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          3000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==reef"
+      },
+      "then": [
+        [
+          "adv",
+          8000
+        ]
+      ],
+      "expect_then": {
+        "error": null
+      }
+    },
+    {
+      "name": "climax",
+      "query": "god=1&at=octopus",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          3000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==octopus"
+      },
+      "then": [
+        [
+          "adv",
+          8000
+        ]
+      ],
+      "expect_then": {
+        "error": null
+      }
+    }
+  ],
+  "exemplar": false,
+  "status": "playable",
+  "version": 2,
+  "check": {
+    "ok": true,
+    "gate": 2,
+    "hash": "7ae60dc785ff93e9d301fc14cbc121add894a34f"
+  },
+  "review": {
+    "at": "2026-09-24T17:45:59",
+    "hash": "7ae60dc785ff93e9d301fc14cbc121add894a34f",
+    "sheet_sha1": "a6ead7e0ea8cde456326deda55b5d5c2c37256cd",
+    "warnings": 0,
+    "tests": 5,
+    "judge": {
+      "model": "sonnet",
+      "verdict": "distinct",
+      "pair": null,
+      "reason": "Images 3 and 4 appear to be the same space-shooter game. Both show a level called TATOOINE, a row of three shield icons for lives, a wizard-hat pilot on a small ship, and a HOUSE POWER / HOUSE METER bar with the same lion emoji. Both also show a weapon indicator (Magic Wand / Blaster) and a planet in a starfield. The rendering style differs, with 3 more polished and 4 more pixel-art. Even so, the ",
+      "cost_usd": 0.0319834,
+      "pair_others": [
+        "space-wizards-3d",
+        "space-wizards"
+      ]
+    },
+    "notes": "read sheet + phone-play at full size: scn-climax shows the plum octopus dome right behind the dolphin with six striped tentacles rising around the lanes under the ink-purple sky; dolphin still readable; phone-play unchanged and clean; 0 warnings"
+  }
+}

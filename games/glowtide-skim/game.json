@@ -1,0 +1,212 @@
+{
+  "slug": "glowtide-skim",
+  "title": "Glowtide Skim",
+  "by": "Uncle Cory",
+  "icon": "🌊",
+  "date": "2026-09-25",
+  "prompt": "Make a game about skimboarding",
+  "engine": "three",
+  "lane": "3d",
+  "genre": "runner-3d",
+  "orient": "portrait",
+  "players": 1,
+  "controls": "custom",
+  "controls_label": "👆 swipe ← → ↑ ↓ · ⌨️ arrows / WASD / Space",
+  "look": {
+    "name": "Moonwash Glowtide",
+    "lane": "neon-synth",
+    "palette": [
+      "#0a0f2c",
+      "#1e4f8a",
+      "#ffb347",
+      "#ff4f7b",
+      "#3dfbd6"
+    ],
+    "font": "righteous",
+    "tone": "agx",
+    "camera": "follow",
+    "hero": "a sideways-stance skimboarder (lathe torso and trunks, capsule limbs, deformed hair cap, amber rim light) on an extruded amber teardrop board with a hot glowing rail, trailing a plankton wake"
+  },
+  "climax": "timed-rescue",
+  "toolbox": 2,
+  "probes": [
+    {
+      "name": "swipe-moves-lane",
+      "phone": true,
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          800
+        ],
+        [
+          "swipe",
+          "[data-arcade-swipe]",
+          "left"
+        ],
+        [
+          "adv",
+          300
+        ]
+      ],
+      "expect": {
+        "focus.lane": "changed"
+      }
+    },
+    {
+      "name": "swipe-up-jumps",
+      "phone": true,
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          800
+        ],
+        [
+          "swipe",
+          "[data-arcade-swipe]",
+          "up"
+        ],
+        [
+          "adv",
+          150
+        ]
+      ],
+      "expect": {
+        "focus.y": "changed"
+      }
+    }
+  ],
+  "scenarios": [
+    {
+      "name": "early",
+      "query": "god=1&at=moonrise",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          3000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==moonrise"
+      },
+      "then": [
+        [
+          "adv",
+          8000
+        ]
+      ],
+      "expect_then": {
+        "error": null
+      }
+    },
+    {
+      "name": "late",
+      "query": "god=1&at=glowtide",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          3000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==glowtide"
+      },
+      "then": [
+        [
+          "adv",
+          8000
+        ]
+      ],
+      "expect_then": {
+        "error": null
+      }
+    },
+    {
+      "name": "climax",
+      "query": "god=1&at=rescue",
+      "steps": [
+        [
+          "adv",
+          800
+        ],
+        [
+          "press",
+          "Enter"
+        ],
+        [
+          "adv",
+          3000
+        ]
+      ],
+      "expect": {
+        "screen": "play",
+        "stage": "==rescue"
+      },
+      "then": [
+        [
+          "adv",
+          8000
+        ]
+      ],
+      "expect_then": {
+        "error": null
+      }
+    }
+  ],
+  "exemplar": false,
+  "status": "playable",
+  "version": 2,
+  "check": {
+    "ok": true,
+    "gate": 2,
+    "hash": "8b44611f0104c8505c2aa5d746d492df3e9837c4"
+  },
+  "review": {
+    "at": "2026-09-25T17:54:31",
+    "hash": "8b44611f0104c8505c2aa5d746d492df3e9837c4",
+    "sheet_sha1": "562d5a8549e620d3e81c4c7ab8912b0ed364a9f6",
+    "warnings": 0,
+    "tests": 5,
+    "judge": {
+      "model": "sonnet",
+      "verdict": "distinct",
+      "pair": null,
+      "reason": "The candidate (2) is a 3D third-person night scene. A character on a glowing board rides a neon teal trail along a shoreline under a moon, with pink jellyfish, glowing orbs and a 'GLOW x2' HUD. Image 1 is a flat top-down daytime beach with a surfer, umbrellas and a sand/water split, so it has a different perspective, lighting and art style, even though both are ocean-themed. Image 3 is a bright pa",
+      "cost_usd": 0.0324888
+    },
+    "notes": "read sheet.png and phone-play.png at full size after polish v2: shuv-it pop in play-2s, sea glass drifting across the film to the board and the foam lace on the wash edge in phone-play, the hatchling beacon with its amber in-world clock and the HUD timer in scn-climax; catch probes show SAVED +500 and the turtle arcing into the surf; still the night neon look, unlike skim-shot and runway-glowup"
+  }
+}
